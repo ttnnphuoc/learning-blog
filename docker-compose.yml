@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  blogapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=BlogApiDb;Username=postgres;Password=Your_password123;
+    depends_on:
+      - postgres
+    networks:
+      - blog-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=BlogApiDb          # Automatically creates this database
+      - POSTGRES_USER=postgres         # Default username
+      - POSTGRES_PASSWORD=Your_password123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - blog-network
+    restart: unless-stopped
+
+networks:
+  blog-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

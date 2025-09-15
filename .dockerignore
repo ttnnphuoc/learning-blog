@@ -1,0 +1,77 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# Dependencies
+**/node_modules/
+**/packages/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+**/*.md
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+**/*.log
+logs/
+
+# Test results
+TestResults/
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+
+# Database files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files (don't copy to avoid recursion)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Temporary files
+**/tmp/
+**/temp/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# NuGet packages (will be restored during build)
+**/packages/*
+!**/packages/build/
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Visual Studio cache/options directory
+.vs/
+
+# ReSharper
+*.[Rr]e[Ss]harper
+*.DotSettings.user
