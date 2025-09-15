@@ -41,6 +41,95 @@ This document outlines the implementation plan for adding comprehensive authenti
 - **Permission granularity**: Fine-grained control over operations
 - **Policy-based authorization**: Flexible authorization rules
 
+## JWT Middleware Workflow
+
+### Middleware Pipeline Order
+The middleware execution order is **critical** for proper security:
+
+HTTP Request → HTTPS → Authentication Middleware → Authorization Middleware → Controller
+    ↓           ↓              ↓                       ↓                  ↓
+Force SSL   Extract & Validate JWT   Check Permissions        Execute Action
+
+```csharp
+// Program.cs - Middleware Pipeline
+app.UseHttpsRedirection();    // 1. Force HTTPS
+app.UseAuthentication();      // 2. JWT Token Processing
+app.UseAuthorization();       // 3. Permission Validation
+app.MapControllers();         // 4. Route to Controllers
+```
+
+### Step-by-Step Middleware Flow
+
+#### 1. **UseAuthentication() Middleware**
+
+**Process Flow**:
+1. **Extract Token**: Reads `Authorization: Bearer <token>` header
+2. **Validate Signature**: Verifies token was signed with correct secret key
+3. **Check Expiration**: Ensures token hasn't expired
+4. **Validate Issuer/Audience**: Confirms token came from BlogAPI
+5. **Parse Claims**: Extracts user ID, email, roles from token payload
+6. **Create Principal**: Builds `ClaimsPrincipal` and sets `HttpContext.User`
+
+#### 2. **UseAuthorization() Middleware**
+**Purpose**: Enforces authorization policies and permissions
+
+**Process Flow**:
+1. **Check Controller Attributes**: Looks for `[Authorize]`, `[AllowAnonymous]`
+2. **Validate Authentication**: Ensures user is authenticated (if required)
+3. **Check Roles**: Validates user has required roles (if specified)
+4. **Policy Evaluation**: Runs custom authorization policies
+5. **Grant/Deny Access**: Returns 401/403 or continues to controller
+
+### JWT Token Structure
+
+```json
+{
+  "header": {
+    "alg": "HS256",
+    "typ": "JWT"
+  },
+  "payload": {
+    "sub": "user-guid-here",
+    "email": "admin@blogapi.com",
+    "name": "admin",
+    "FirstName": "Super",
+    "LastName": "Admin",
+    "role": ["Admin"],
+    "exp": 1726459200,
+    "iss": "BlogAPI",
+    "aud": "BlogAPI-Users"
+  },
+  "signature": "HMACSHA256(base64(header) + '.' + base64(payload), secret)"
+}
+```
+
+### Current Implementation Status
+
+#### ✅ Phase 1 Complete
+- **JWT Authentication**: Full token validation pipeline
+- **Basic Authorization**: `[Authorize]` attribute support
+- **Role Claims**: Roles included in JWT tokens
+- **Middleware Pipeline**: Proper order and configuration
+- **Error Handling**: Standard HTTP status codes
+
+#### 🚧 Phase 2 Future Enhancements
+- **Custom Policies**: Resource ownership validation
+- **Permission-Based**: Fine-grained permission checks
+- **Dynamic Authorization**: Runtime permission evaluation
+- **Audit Logging**: Track all authorization decisions
+
+### Middleware Configuration Summary
+
+The JWT middleware in `Program.cs` handles:
+
+1. **Token Extraction**: From `Authorization: Bearer <token>` header
+2. **Signature Validation**: Using secret key `"BlogLearning@2025"`
+3. **Claims Processing**: User ID, email, roles, expiration
+4. **Identity Creation**: Sets `HttpContext.User` for controllers
+5. **Authorization Enforcement**: Works with `[Authorize]` attributes
+
+This creates a secure, stateless authentication system that validates every request and provides user context to your controllers.
+
 ## Domain Model Changes
 
 ### New Entities

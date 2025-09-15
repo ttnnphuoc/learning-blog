@@ -194,42 +194,97 @@ public class BlogDbContext : DbContext
 
 ```
 BlogAPI/
-├── 📁 src/
+├── 📁 blog-ui/                    # Next.js Frontend
+│   ├── 📁 src/
+│   │   ├── 📁 app/               # Next.js App Router
+│   │   │   ├── globals.css       # Global styles
+│   │   │   ├── layout.tsx        # Root layout
+│   │   │   ├── page.tsx         # Home page
+│   │   │   ├── 📁 posts/        # Blog posts pages
+│   │   │   │   ├── page.tsx     # Posts listing
+│   │   │   │   └── 📁 [slug]/   # Dynamic post pages
+│   │   │   │       └── page.tsx # Individual post
+│   │   │   ├── robots.ts        # SEO robots.txt
+│   │   │   └── sitemap.ts       # SEO sitemap
+│   │   ├── 📁 components/       # React components
+│   │   │   └── 📁 ui/           # UI components
+│   │   ├── 📁 lib/              # Utility libraries
+│   │   │   ├── api.ts           # API client
+│   │   │   └── metadata.ts      # SEO helpers
+│   │   └── 📁 types/            # TypeScript types
+│   │       └── index.ts         # Type definitions
+│   ├── next.config.js           # Next.js configuration
+│   ├── tailwind.config.js       # Tailwind CSS config
+│   ├── tsconfig.json           # TypeScript config
+│   ├── package.json            # Dependencies
+│   └── README.md               # Frontend documentation
+├── 📁 src/                      # ASP.NET Core Backend
 │   ├── 📁 BlogAPI.Domain/
 │   │   └── 📁 Entities/
 │   │       ├── BaseEntity.cs
 │   │       ├── Post.cs
 │   │       ├── Category.cs
-│   │       └── Tag.cs
+│   │       ├── Tag.cs
+│   │       ├── User.cs
+│   │       ├── Role.cs
+│   │       └── Permission.cs
 │   ├── 📁 BlogAPI.Application/
 │   │   ├── 📁 DTOs/
 │   │   │   ├── PostDto.cs
 │   │   │   ├── CategoryDto.cs
-│   │   │   └── TagDto.cs
+│   │   │   ├── TagDto.cs
+│   │   │   ├── UserDto.cs
+│   │   │   ├── AuthResult.cs
+│   │   │   ├── LoginDto.cs
+│   │   │   └── RegisterDto.cs
 │   │   ├── 📁 Interfaces/
 │   │   │   ├── IRepository.cs
 │   │   │   ├── IPostRepository.cs
 │   │   │   ├── ICategoryRepository.cs
-│   │   │   └── ITagRepository.cs
+│   │   │   ├── ITagRepository.cs
+│   │   │   ├── IUserRepository.cs
+│   │   │   ├── IAuthService.cs
+│   │   │   └── IUserService.cs
 │   │   └── 📁 Services/
 │   │       ├── IPostService.cs
 │   │       ├── ICategoryService.cs
 │   │       ├── ITagService.cs
-│   │       └── PostService.cs
+│   │       ├── PostService.cs
+│   │       ├── AuthService.cs
+│   │       └── UserService.cs
 │   ├── 📁 BlogAPI.Infrastructure/
 │   │   ├── 📁 Data/
 │   │   │   └── BlogDbContext.cs
-│   │   └── 📁 Repositories/
-│   │       ├── Repository.cs
-│   │       ├── PostRepository.cs
-│   │       ├── CategoryRepository.cs
-│   │       └── TagRepository.cs
+│   │   ├── 📁 Repositories/
+│   │   │   ├── Repository.cs
+│   │   │   ├── PostRepository.cs
+│   │   │   ├── CategoryRepository.cs
+│   │   │   ├── TagRepository.cs
+│   │   │   ├── UserRepository.cs
+│   │   │   └── RefreshTokenRepository.cs
+│   │   ├── 📁 Services/
+│   │   │   └── DatabaseSeeder.cs
+│   │   └── 📁 Migrations/
+│   │       ├── InitialCreate.cs
+│   │       └── AddAuthentication.cs
 │   └── 📁 BlogAPI.WebAPI/
 │       ├── 📁 Controllers/
-│       │   └── PostsController.cs
+│       │   ├── PostsController.cs
+│       │   └── AuthController.cs
+│       ├── 📁 Configuration/
+│       │   └── JwtSettings.cs
 │       ├── Program.cs
-│       └── appsettings.json
-└── 📁 tests/ (Future)
+│       ├── appsettings.json
+│       └── appsettings.Development.json
+├── 📁 docs/                     # Documentation
+│   ├── 📁 features/
+│   │   ├── authentication-authorization.md
+│   │   └── authentication-workflow.md
+│   └── super-admin-setup.md
+├── 📁 tests/                    # Tests (Future)
+├── docker-compose.yml           # Docker configuration
+├── Dockerfile                   # Docker build file
+└── README.md                   # Main documentation
 ```
 
 ## 🚀 Getting Started
@@ -237,9 +292,10 @@ BlogAPI/
 ### Prerequisites
 - .NET 9 SDK
 - PostgreSQL Server
+- Node.js 18+ & npm
 - Visual Studio 2022 or VS Code
 
-### Installation
+### Backend Setup (ASP.NET Core)
 
 1. **Clone the repository**
 ```bash
@@ -267,6 +323,58 @@ Edit `src/BlogAPI.WebAPI/appsettings.json`:
 dotnet ef migrations add InitialCreate --project src/BlogAPI.Infrastructure --startup-project src/BlogAPI.WebAPI
 dotnet ef database update --project src/BlogAPI.Infrastructure --startup-project src/BlogAPI.WebAPI
 ```
+
+5. **Run the Backend API**
+```bash
+dotnet run --project src/BlogAPI.WebAPI
+```
+The API will be available at `https://localhost:7041`
+
+### Frontend Setup (Next.js)
+
+1. **Navigate to frontend directory**
+```bash
+cd blog-ui
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Configure environment variables**
+Create `.env.local` file:
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://localhost:7041
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+4. **Run the Frontend**
+```bash
+npm run dev
+```
+The frontend will be available at `http://localhost:3000`
+
+### Full Stack Development
+
+To run both backend and frontend simultaneously:
+
+1. **Terminal 1 - Backend:**
+```bash
+dotnet run --project src/BlogAPI.WebAPI
+```
+
+2. **Terminal 2 - Frontend:**
+```bash
+cd blog-ui && npm run dev
+```
+
+### Important Notes
+
+- **CORS Configuration**: The backend is configured to allow requests from `http://localhost:3000`
+- **API Integration**: The frontend includes a pre-configured API client that connects to the backend
+- **Mock Data**: The frontend currently uses mock data for development. Replace with real API calls once backend is running
+- **Authentication**: JWT authentication is implemented in the backend and ready for frontend integration
 
 ## 🔄 Database Migrations
 
@@ -557,6 +665,13 @@ docker ps
 - [ ] Implement API versioning
 - [ ] Add search functionality
 - [ ] Implement file upload for images
+- [ ] 🚧 Enterprise Additions (Optional):
+  - API Versioning
+  - Rate Limiting
+  - Caching Layer
+  - Logging & Monitoring
+  - Unit/Integration Tests
+  - CI/CD Pipeline
 - [ ] Add email notifications
 - [ ] Implement rate limiting
 
