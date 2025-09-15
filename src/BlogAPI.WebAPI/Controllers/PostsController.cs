@@ -1,5 +1,6 @@
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BlogAPI.WebAPI.Controllers;
@@ -61,6 +62,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<PostDto>> CreatePost(CreatePostDto createPostDto)
     {
         try
@@ -75,6 +77,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize]
     public async Task<ActionResult<PostDto>> UpdatePost(Guid id, UpdatePostDto updatePostDto)
     {
         var post = await _postService.UpdatePostAsync(id, updatePostDto);
@@ -85,6 +88,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize]
     public async Task<IActionResult> DeletePost(Guid id)
     {
         var result = await _postService.DeletePostAsync(id);

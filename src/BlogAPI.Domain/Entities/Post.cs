@@ -15,5 +15,8 @@ public class Post : BaseEntity
     public Guid CategoryId { get; set; }
     public Category Category { get; set; } = null!;
     
+    public Guid AuthorId { get; set; }
+    public User Author { get; set; } = null!;
+    
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }
