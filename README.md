@@ -236,7 +236,7 @@ BlogAPI/
 
 ### Prerequisites
 - .NET 9 SDK
-- SQL Server or SQL Server LocalDB
+- PostgreSQL Server
 - Visual Studio 2022 or VS Code
 
 ### Installation
@@ -257,7 +257,7 @@ Edit `src/BlogAPI.WebAPI/appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=BlogApiDb;Trusted_Connection=true;MultipleActiveResultSets=true"
+    "DefaultConnection": "Server=127.0.0.1;Port=5432;Database=BlogLearning;User Id=postgres;Password=sa;Pooling=true;Maximum Pool Size=200;Command Timeout=300;"
   }
 }
 ```
@@ -452,7 +452,7 @@ docker run -p 8080:8080 blog-api
 ```bash
 docker run -p 8080:8080 \
   -e ASPNETCORE_ENVIRONMENT=Development \
-  -e "ConnectionStrings__DefaultConnection=Server=host.docker.internal;Database=BlogApiDb;Trusted_Connection=true;" \
+  -e "ConnectionStrings__DefaultConnection=Server=host.docker.internal;Port=5432;Database=BlogLearning;User Id=postgres;Password=sa;" \
   blog-api
 ```
 
@@ -461,7 +461,7 @@ docker run -p 8080:8080 \
 The docker-compose setup includes:
 
 - **BlogAPI**: Main web API service (port 8080)
-- **SQL Server**: Database service (port 1433)
+- **PostgreSQL**: Database service (port 5432)
 - **Networks**: Isolated network for service communication
 - **Volumes**: Persistent storage for database data
 
