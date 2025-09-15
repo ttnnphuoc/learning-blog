@@ -70,8 +70,18 @@ builder.Services.AddAuthorization();
 // Add database seeder
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
 
-var app = builder.Build();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BlogUI", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Your frontend URL
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
 
+var app = builder.Build();
 // Seed database with default data
 using (var scope = app.Services.CreateScope())
 {
@@ -92,6 +102,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+app.UseCors("BlogUI");
 
 app.UseHttpsRedirection();
 
