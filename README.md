@@ -549,7 +549,7 @@ docker ps
 
 ## 🔮 Future Enhancements
 
-- [ ] Add authentication and authorization
+- [x] Add authentication and authorization
 - [ ] Implement CQRS pattern
 - [ ] Add caching layer
 - [ ] Implement logging and monitoring
