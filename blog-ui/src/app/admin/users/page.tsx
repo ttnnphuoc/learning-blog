@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
@@ -196,12 +196,12 @@ export default function AdminUsers() {
     }
   };
 
-  const handleFormChange = (field: keyof CreateUserDto) => (
+  const handleFormChange = useCallback((field: keyof CreateUserDto) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   const handleRoleChange = (roleId: string, checked: boolean) => {
     setFormData(prev => ({
@@ -212,7 +212,7 @@ export default function AdminUsers() {
     }));
   };
 
-  const UserForm = () => (
+  const UserForm = React.useMemo(() => (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -318,7 +318,7 @@ export default function AdminUsers() {
         </div>
       </div>
     </div>
-  );
+  ), [formData, formLoading, roles]);
 
   return (
     <div>
@@ -341,7 +341,7 @@ export default function AdminUsers() {
         loading={formLoading}
         size="lg"
       >
-        <UserForm />
+        {UserForm}
       </AdminModal>
 
       {/* Edit Modal */}
@@ -356,7 +356,7 @@ export default function AdminUsers() {
         loading={formLoading}
         size="lg"
       >
-        <UserForm />
+        {UserForm}
       </AdminModal>
 
       {/* Delete Modal */}

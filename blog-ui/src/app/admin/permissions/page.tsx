@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
@@ -144,18 +144,18 @@ export default function AdminPermissions() {
     }
   };
 
-  const handleFormChange = (field: keyof CreatePermissionDto) => (
+  const handleFormChange = useCallback((field: keyof CreatePermissionDto) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   useEffect(() => {
     fetchPermissions();
   }, []);
 
-  const PermissionForm = () => (
+  const PermissionForm = React.useMemo(() => (
     <div className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -208,7 +208,7 @@ export default function AdminPermissions() {
         />
       </div>
     </div>
-  );
+  ), [formData, formLoading]);
 
   // Group permissions by category for display
   const groupedPermissions = permissions.reduce((acc, permission) => {
@@ -240,7 +240,7 @@ export default function AdminPermissions() {
         title="Create Permission"
         loading={formLoading}
       >
-        <PermissionForm />
+        {PermissionForm}
       </AdminModal>
 
       {/* Edit Modal */}
@@ -254,7 +254,7 @@ export default function AdminPermissions() {
         title="Edit Permission"
         loading={formLoading}
       >
-        <PermissionForm />
+        {PermissionForm}
       </AdminModal>
 
       {/* Delete Modal */}

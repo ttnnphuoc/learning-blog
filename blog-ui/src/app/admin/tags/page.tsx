@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
@@ -143,23 +143,27 @@ export default function AdminTags() {
     }
   };
 
-  const handleFormChange = (field: keyof CreateTagDto) => (
+  const handleFormChange = useCallback((field: keyof CreateTagDto) => (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = e.target.value;
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Auto-generate slug when name changes
-    if (field === 'name' && !formData.slug) {
-      setFormData(prev => ({ ...prev, slug: generateSlug(value) }));
-    }
-  };
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-generate slug when name changes and slug is empty
+      if (field === 'name' && !prev.slug) {
+        newData.slug = generateSlug(value);
+      }
+      
+      return newData;
+    });
+  }, []);
 
   useEffect(() => {
     fetchTags();
   }, []);
 
-  const TagForm = () => (
+  const TagForm = React.useMemo(() => (
     <div className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -189,7 +193,7 @@ export default function AdminTags() {
         </p>
       </div>
     </div>
-  );
+  ), [formData, formLoading]);
 
   return (
     <div>
@@ -211,7 +215,7 @@ export default function AdminTags() {
         title="Create Tag"
         loading={formLoading}
       >
-        <TagForm />
+        {TagForm}
       </AdminModal>
 
       {/* Edit Modal */}
@@ -225,7 +229,7 @@ export default function AdminTags() {
         title="Edit Tag"
         loading={formLoading}
       >
-        <TagForm />
+        {TagForm}
       </AdminModal>
 
       {/* Delete Modal */}

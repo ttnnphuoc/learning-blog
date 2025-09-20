@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
@@ -159,12 +159,12 @@ export default function AdminRoles() {
     }
   };
 
-  const handleFormChange = (field: keyof CreateRoleDto) => (
+  const handleFormChange = useCallback((field: keyof CreateRoleDto) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
     setFormData(prev => ({
@@ -179,7 +179,7 @@ export default function AdminRoles() {
     fetchRoles();
   }, []);
 
-  const RoleForm = () => (
+  const RoleForm = React.useMemo(() => (
     <div className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -302,7 +302,7 @@ export default function AdminRoles() {
         </div>
       )}
     </div>
-  );
+  ), [formData, formLoading, permissions]);
 
   return (
     <div>
@@ -325,7 +325,7 @@ export default function AdminRoles() {
         loading={formLoading}
         size="lg"
       >
-        <RoleForm />
+        {RoleForm}
       </AdminModal>
 
       {/* Edit Modal */}
@@ -340,7 +340,7 @@ export default function AdminRoles() {
         loading={formLoading}
         size="lg"
       >
-        <RoleForm />
+        {RoleForm}
       </AdminModal>
 
       {/* Delete Modal */}

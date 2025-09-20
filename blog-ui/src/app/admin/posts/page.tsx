@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
@@ -234,17 +234,21 @@ export default function AdminPosts() {
     }
   };
 
-  const handleFormChange = (field: keyof CreatePostDto) => (
+  const handleFormChange = useCallback((field: keyof CreatePostDto) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Auto-generate slug when title changes
-    if (field === 'title' && !formData.slug) {
-      setFormData(prev => ({ ...prev, slug: generateSlug(value as string) }));
-    }
-  };
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-generate slug when title changes and slug is empty
+      if (field === 'title' && !prev.slug) {
+        newData.slug = generateSlug(value as string);
+      }
+      
+      return newData;
+    });
+  }, []);
 
   const handleCategoryChange = (categoryId: string, checked: boolean) => {
     setFormData(prev => ({
@@ -264,7 +268,7 @@ export default function AdminPosts() {
     }));
   };
 
-  const PostForm = () => (
+  const PostForm = React.useMemo(() => (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
@@ -384,7 +388,7 @@ export default function AdminPosts() {
         </label>
       </div>
     </div>
-  );
+  ), [formData, formLoading, categories, tags]);
 
   return (
     <div>
@@ -407,7 +411,7 @@ export default function AdminPosts() {
         loading={formLoading}
         size="xl"
       >
-        <PostForm />
+        {PostForm}
       </AdminModal>
 
       {/* Edit Modal */}
@@ -422,7 +426,7 @@ export default function AdminPosts() {
         loading={formLoading}
         size="xl"
       >
-        <PostForm />
+        {PostForm}
       </AdminModal>
 
       {/* Delete Modal */}
