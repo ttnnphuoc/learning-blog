@@ -14,12 +14,14 @@ public class RoleRepository : Repository<Role>, IRoleRepository
     public async Task<Role?> GetByNameAsync(string name)
     {
         return await _context.Roles
+            .Where(r => !r.IsDeleted)
             .FirstOrDefaultAsync(r => r.Name == name);
     }
 
     public async Task<Role?> GetWithPermissionsAsync(Guid id)
     {
         return await _context.Roles
+            .Where(r => !r.IsDeleted)
             .Include(r => r.Permissions)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
@@ -27,16 +29,16 @@ public class RoleRepository : Repository<Role>, IRoleRepository
     public async Task<IEnumerable<Role>> GetSystemRolesAsync()
     {
         return await _context.Roles
+            .Where(r => !r.IsDeleted && r.IsSystemRole)
             .Include(r => r.Permissions)
-            .Where(r => r.IsSystemRole)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<Role>> GetUserRolesAsync()
     {
         return await _context.Roles
+            .Where(r => !r.IsDeleted && !r.IsSystemRole)
             .Include(r => r.Permissions)
-            .Where(r => !r.IsSystemRole)
             .ToListAsync();
     }
 

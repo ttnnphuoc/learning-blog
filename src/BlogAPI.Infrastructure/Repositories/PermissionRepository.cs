@@ -14,20 +14,21 @@ public class PermissionRepository : Repository<Permission>, IPermissionRepositor
     public async Task<Permission?> GetByNameAsync(string name)
     {
         return await _context.Permissions
+            .Where(p => !p.IsDeleted)
             .FirstOrDefaultAsync(p => p.Name == name);
     }
 
     public async Task<IEnumerable<Permission>> GetByResourceAsync(string resource)
     {
         return await _context.Permissions
-            .Where(p => p.Resource == resource)
+            .Where(p => !p.IsDeleted && p.Resource == resource)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<Permission>> GetByCategoryAsync(string category)
     {
         return await _context.Permissions
-            .Where(p => p.Category == category)
+            .Where(p => !p.IsDeleted && p.Category == category)
             .ToListAsync();
     }
 }

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
-using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.WebAPI.Controllers;
 
@@ -9,12 +8,12 @@ namespace BlogAPI.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class CategoriesController : ControllerBase
 {
-    private readonly ICategoryRepository _categoryRepository;
+    private readonly ICategoryService _categoryService;
     private readonly ILogger<CategoriesController> _logger;
 
-    public CategoriesController(ICategoryRepository categoryRepository, ILogger<CategoriesController> logger)
+    public CategoriesController(ICategoryService categoryService, ILogger<CategoriesController> logger)
     {
-        _categoryRepository = categoryRepository;
+        _categoryService = categoryService;
         _logger = logger;
     }
 
@@ -26,18 +25,8 @@ public class CategoriesController : ControllerBase
     {
         try
         {
-            var categories = await _categoryRepository.GetAllAsync();
-            var categoryDtos = categories.Select(c => new CategoryDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                Slug = c.Slug,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            });
-
-            return Ok(categoryDtos);
+            var categories = await _categoryService.GetAllCategoriesAsync();
+            return Ok(categories);
         }
         catch (Exception ex)
         {
@@ -54,27 +43,40 @@ public class CategoriesController : ControllerBase
     {
         try
         {
-            var category = await _categoryRepository.GetByIdAsync(id);
+            var category = await _categoryService.GetCategoryByIdAsync(id);
             if (category == null)
             {
                 return NotFound($"Category with ID {id} not found");
             }
 
-            var categoryDto = new CategoryDto
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                Slug = category.Slug,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
-
-            return Ok(categoryDto);
+            return Ok(category);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving category {CategoryId}", id);
+            return StatusCode(500, "An error occurred while retrieving the category");
+        }
+    }
+
+    /// <summary>
+    /// Get category by slug
+    /// </summary>
+    [HttpGet("slug/{slug}")]
+    public async Task<ActionResult<CategoryDto>> GetCategoryBySlug(string slug)
+    {
+        try
+        {
+            var category = await _categoryService.GetCategoryBySlugAsync(slug);
+            if (category == null)
+            {
+                return NotFound($"Category with slug '{slug}' not found");
+            }
+
+            return Ok(category);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving category by slug {Slug}", slug);
             return StatusCode(500, "An error occurred while retrieving the category");
         }
     }
@@ -87,44 +89,13 @@ public class CategoriesController : ControllerBase
     {
         try
         {
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(createCategoryDto.Name))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Category name is required");
+                return BadRequest(ModelState);
             }
 
-            // Generate slug if not provided
-            var slug = !string.IsNullOrWhiteSpace(createCategoryDto.Slug) 
-                ? createCategoryDto.Slug 
-                : GenerateSlug(createCategoryDto.Name);
-
-            // Check if slug already exists
-            var existingCategory = await _categoryRepository.GetBySlugAsync(slug);
-            if (existingCategory != null)
-            {
-                return Conflict($"A category with slug '{slug}' already exists");
-            }
-
-            var category = new Category
-            {
-                Name = createCategoryDto.Name,
-                Description = createCategoryDto.Description,
-                Slug = slug
-            };
-
-            var createdCategory = await _categoryRepository.AddAsync(category);
-
-            var categoryDto = new CategoryDto
-            {
-                Id = createdCategory.Id,
-                Name = createdCategory.Name,
-                Description = createdCategory.Description,
-                Slug = createdCategory.Slug,
-                CreatedAt = createdCategory.CreatedAt,
-                UpdatedAt = createdCategory.UpdatedAt
-            };
-
-            return CreatedAtAction(nameof(GetCategory), new { id = createdCategory.Id }, categoryDto);
+            var category = await _categoryService.CreateCategoryAsync(createCategoryDto);
+            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
         catch (Exception ex)
         {
@@ -134,54 +105,25 @@ public class CategoriesController : ControllerBase
     }
 
     /// <summary>
-    /// Update an existing category
+    /// Update a category
     /// </summary>
     [HttpPut("{id}")]
     public async Task<ActionResult<CategoryDto>> UpdateCategory(Guid id, UpdateCategoryDto updateCategoryDto)
     {
         try
         {
-            var category = await _categoryRepository.GetByIdAsync(id);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var category = await _categoryService.UpdateCategoryAsync(id, updateCategoryDto);
             if (category == null)
             {
                 return NotFound($"Category with ID {id} not found");
             }
 
-            // Update fields if provided
-            if (!string.IsNullOrWhiteSpace(updateCategoryDto.Name))
-            {
-                category.Name = updateCategoryDto.Name;
-            }
-
-            if (updateCategoryDto.Description != null)
-            {
-                category.Description = updateCategoryDto.Description;
-            }
-
-            if (!string.IsNullOrWhiteSpace(updateCategoryDto.Slug))
-            {
-                // Check if new slug already exists (and it's not the current category)
-                var existingCategory = await _categoryRepository.GetBySlugAsync(updateCategoryDto.Slug);
-                if (existingCategory != null && existingCategory.Id != id)
-                {
-                    return Conflict($"A category with slug '{updateCategoryDto.Slug}' already exists");
-                }
-                category.Slug = updateCategoryDto.Slug;
-            }
-
-            var updatedCategory = await _categoryRepository.UpdateAsync(category);
-
-            var categoryDto = new CategoryDto
-            {
-                Id = updatedCategory.Id,
-                Name = updatedCategory.Name,
-                Description = updatedCategory.Description,
-                Slug = updatedCategory.Slug,
-                CreatedAt = updatedCategory.CreatedAt,
-                UpdatedAt = updatedCategory.UpdatedAt
-            };
-
-            return Ok(categoryDto);
+            return Ok(category);
         }
         catch (Exception ex)
         {
@@ -191,76 +133,29 @@ public class CategoriesController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a category
+    /// Delete a category (move to trash)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
         try
         {
-            var category = await _categoryRepository.GetByIdAsync(id);
-            if (category == null)
+            var result = await _categoryService.DeleteCategoryAsync(id);
+            if (!result)
             {
                 return NotFound($"Category with ID {id} not found");
             }
 
-            // Check if category has posts
-            if (category.PostCategories?.Count > 0)
-            {
-                return BadRequest("Cannot delete category that has associated posts");
-            }
-
-            await _categoryRepository.DeleteAsync(category);
-            return NoContent();
+            return Ok(new { message = "Category moved to trash successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting category {CategoryId}", id);
             return StatusCode(500, "An error occurred while deleting the category");
         }
-    }
-
-    /// <summary>
-    /// Get category by slug
-    /// </summary>
-    [HttpGet("slug/{slug}")]
-    public async Task<ActionResult<CategoryDto>> GetCategoryBySlug(string slug)
-    {
-        try
-        {
-            var category = await _categoryRepository.GetBySlugAsync(slug);
-            if (category == null)
-            {
-                return NotFound($"Category with slug '{slug}' not found");
-            }
-
-            var categoryDto = new CategoryDto
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                Slug = category.Slug,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
-
-            return Ok(categoryDto);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving category by slug {Slug}", slug);
-            return StatusCode(500, "An error occurred while retrieving the category");
-        }
-    }
-
-    /// <summary>
-    /// Generate URL-friendly slug from text
-    /// </summary>
-    private static string GenerateSlug(string text)
-    {
-        return text.ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("_", "-")
-            .Trim('-');
     }
 }

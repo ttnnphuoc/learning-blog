@@ -35,6 +35,10 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 // Add services
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuthService>(provider =>
 {
     var userService = provider.GetRequiredService<IUserService>();

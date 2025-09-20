@@ -14,6 +14,7 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<User?> GetByEmailAsync(string email)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
@@ -22,6 +23,7 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<User?> GetByUsernameAsync(string username)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
@@ -30,6 +32,7 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<User?> GetWithRolesAsync(Guid id)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(u => u.Id == id);
@@ -38,6 +41,7 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<bool> ExistsAsync(string email, string username)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .AnyAsync(u => u.Email.ToLower() == email.ToLower() || 
                           u.Username.ToLower() == username.ToLower());
     }
@@ -45,6 +49,7 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<IEnumerable<User>> GetByRoleAsync(string roleName)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .Where(u => u.UserRoles.Any(ur => ur.Role.Name.ToLower() == roleName.ToLower()))
@@ -54,15 +59,16 @@ public class UserRepository : Repository<User>, IUserRepository
     public async Task<IEnumerable<User>> GetActiveUsersAsync()
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted && u.IsActive)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
-            .Where(u => u.IsActive)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<User>> GetUsersByRoleAsync(Guid roleId)
     {
         return await _context.Users
+            .Where(u => !u.IsDeleted)
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .Where(u => u.UserRoles.Any(ur => ur.RoleId == roleId))

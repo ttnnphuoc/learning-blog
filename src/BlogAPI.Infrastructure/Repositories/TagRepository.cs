@@ -13,13 +13,13 @@ public class TagRepository : Repository<Tag>, ITagRepository
 
     public async Task<Tag?> GetBySlugAsync(string slug)
     {
-        return await _dbSet.FirstOrDefaultAsync(t => t.Slug == slug);
+        return await _dbSet.FirstOrDefaultAsync(t => t.Slug == slug && !t.IsDeleted);
     }
 
     public async Task<IEnumerable<Tag>> GetTagsByPostIdAsync(Guid postId)
     {
         return await _dbSet
-            .Where(t => t.PostTags.Any(pt => pt.PostId == postId))
+            .Where(t => !t.IsDeleted && t.PostTags.Any(pt => pt.PostId == postId))
             .ToListAsync();
     }
 }

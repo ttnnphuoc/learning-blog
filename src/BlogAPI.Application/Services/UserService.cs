@@ -77,8 +77,8 @@ public class UserService : IUserService
         var user = await _userRepository.GetByIdAsync(id);
         if (user == null)
             return false;
-        
-        await _userRepository.DeleteAsync(user);
+
+        await _userRepository.SoftDeleteAsync(user);
         return true;
     }
 

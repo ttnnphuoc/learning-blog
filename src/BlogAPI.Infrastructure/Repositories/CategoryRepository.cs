@@ -13,6 +13,6 @@ public class CategoryRepository : Repository<Category>, ICategoryRepository
 
     public async Task<Category?> GetBySlugAsync(string slug)
     {
-        return await _dbSet.FirstOrDefaultAsync(c => c.Slug == slug);
+        return await _dbSet.FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted);
     }
 }

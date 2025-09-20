@@ -1,6 +1,6 @@
 using BlogAPI.Application.DTOs;
 
-namespace BlogAPI.Application.Services;
+namespace BlogAPI.Application.Interfaces;
 
 public interface ICategoryService
 {

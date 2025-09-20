@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
-using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.WebAPI.Controllers;
 
@@ -9,12 +8,12 @@ namespace BlogAPI.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class PermissionsController : ControllerBase
 {
-    private readonly IPermissionRepository _permissionRepository;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<PermissionsController> _logger;
 
-    public PermissionsController(IPermissionRepository permissionRepository, ILogger<PermissionsController> logger)
+    public PermissionsController(IPermissionService permissionService, ILogger<PermissionsController> logger)
     {
-        _permissionRepository = permissionRepository;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -26,20 +25,8 @@ public class PermissionsController : ControllerBase
     {
         try
         {
-            var permissions = await _permissionRepository.GetAllAsync();
-            var permissionDtos = permissions.Select(p => new PermissionDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Resource = p.Resource,
-                Action = p.Action,
-                Description = p.Description,
-                Category = p.Category,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            });
-
-            return Ok(permissionDtos);
+            var permissions = await _permissionService.GetAllPermissionsAsync();
+            return Ok(permissions);
         }
         catch (Exception ex)
         {
@@ -56,29 +43,40 @@ public class PermissionsController : ControllerBase
     {
         try
         {
-            var permission = await _permissionRepository.GetByIdAsync(id);
+            var permission = await _permissionService.GetPermissionByIdAsync(id);
             if (permission == null)
             {
                 return NotFound($"Permission with ID {id} not found");
             }
 
-            var permissionDto = new PermissionDto
-            {
-                Id = permission.Id,
-                Name = permission.Name,
-                Resource = permission.Resource,
-                Action = permission.Action,
-                Description = permission.Description,
-                Category = permission.Category,
-                CreatedAt = permission.CreatedAt,
-                UpdatedAt = permission.UpdatedAt
-            };
-
-            return Ok(permissionDto);
+            return Ok(permission);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving permission {PermissionId}", id);
+            return StatusCode(500, "An error occurred while retrieving the permission");
+        }
+    }
+
+    /// <summary>
+    /// Get permission by name
+    /// </summary>
+    [HttpGet("name/{name}")]
+    public async Task<ActionResult<PermissionDto>> GetPermissionByName(string name)
+    {
+        try
+        {
+            var permission = await _permissionService.GetPermissionByNameAsync(name);
+            if (permission == null)
+            {
+                return NotFound($"Permission with name '{name}' not found");
+            }
+
+            return Ok(permission);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving permission by name {PermissionName}", name);
             return StatusCode(500, "An error occurred while retrieving the permission");
         }
     }
@@ -91,53 +89,17 @@ public class PermissionsController : ControllerBase
     {
         try
         {
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(createPermissionDto.Name))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Permission name is required");
+                return BadRequest(ModelState);
             }
 
-            if (string.IsNullOrWhiteSpace(createPermissionDto.Resource))
-            {
-                return BadRequest("Resource is required");
-            }
-
-            if (string.IsNullOrWhiteSpace(createPermissionDto.Action))
-            {
-                return BadRequest("Action is required");
-            }
-
-            // Check if permission already exists
-            var existingPermission = await _permissionRepository.GetByNameAsync(createPermissionDto.Name);
-            if (existingPermission != null)
-            {
-                return Conflict($"A permission with name '{createPermissionDto.Name}' already exists");
-            }
-
-            var permission = new Permission
-            {
-                Name = createPermissionDto.Name,
-                Resource = createPermissionDto.Resource,
-                Action = createPermissionDto.Action,
-                Description = createPermissionDto.Description,
-                Category = createPermissionDto.Category
-            };
-
-            var createdPermission = await _permissionRepository.AddAsync(permission);
-
-            var permissionDto = new PermissionDto
-            {
-                Id = createdPermission.Id,
-                Name = createdPermission.Name,
-                Resource = createdPermission.Resource,
-                Action = createdPermission.Action,
-                Description = createdPermission.Description,
-                Category = createdPermission.Category,
-                CreatedAt = createdPermission.CreatedAt,
-                UpdatedAt = createdPermission.UpdatedAt
-            };
-
-            return CreatedAtAction(nameof(GetPermission), new { id = createdPermission.Id }, permissionDto);
+            var permission = await _permissionService.CreatePermissionAsync(createPermissionDto);
+            return CreatedAtAction(nameof(GetPermission), new { id = permission.Id }, permission);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
         catch (Exception ex)
         {
@@ -154,59 +116,22 @@ public class PermissionsController : ControllerBase
     {
         try
         {
-            var permission = await _permissionRepository.GetByIdAsync(id);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var permission = await _permissionService.UpdatePermissionAsync(id, updatePermissionDto);
             if (permission == null)
             {
                 return NotFound($"Permission with ID {id} not found");
             }
 
-            // Update fields if provided
-            if (!string.IsNullOrWhiteSpace(updatePermissionDto.Name))
-            {
-                // Check if new name already exists (and it's not the current permission)
-                var existingPermission = await _permissionRepository.GetByNameAsync(updatePermissionDto.Name);
-                if (existingPermission != null && existingPermission.Id != id)
-                {
-                    return Conflict($"A permission with name '{updatePermissionDto.Name}' already exists");
-                }
-                permission.Name = updatePermissionDto.Name;
-            }
-
-            if (!string.IsNullOrWhiteSpace(updatePermissionDto.Resource))
-            {
-                permission.Resource = updatePermissionDto.Resource;
-            }
-
-            if (!string.IsNullOrWhiteSpace(updatePermissionDto.Action))
-            {
-                permission.Action = updatePermissionDto.Action;
-            }
-
-            if (updatePermissionDto.Description != null)
-            {
-                permission.Description = updatePermissionDto.Description;
-            }
-
-            if (!string.IsNullOrWhiteSpace(updatePermissionDto.Category))
-            {
-                permission.Category = updatePermissionDto.Category;
-            }
-
-            await _permissionRepository.UpdateAsync(permission);
-
-            var permissionDto = new PermissionDto
-            {
-                Id = permission.Id,
-                Name = permission.Name,
-                Resource = permission.Resource,
-                Action = permission.Action,
-                Description = permission.Description,
-                Category = permission.Category,
-                CreatedAt = permission.CreatedAt,
-                UpdatedAt = permission.UpdatedAt
-            };
-
-            return Ok(permissionDto);
+            return Ok(permission);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
         catch (Exception ex)
         {
@@ -216,121 +141,29 @@ public class PermissionsController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a permission
+    /// Delete a permission (move to trash)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePermission(Guid id)
     {
         try
         {
-            var permission = await _permissionRepository.GetByIdAsync(id);
-            if (permission == null)
+            var result = await _permissionService.DeletePermissionAsync(id);
+            if (!result)
             {
                 return NotFound($"Permission with ID {id} not found");
             }
 
-            await _permissionRepository.DeleteAsync(permission);
-            return NoContent();
+            return Ok(new { message = "Permission moved to trash successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting permission {PermissionId}", id);
             return StatusCode(500, "An error occurred while deleting the permission");
-        }
-    }
-
-    /// <summary>
-    /// Get permission by name
-    /// </summary>
-    [HttpGet("name/{name}")]
-    public async Task<ActionResult<PermissionDto>> GetPermissionByName(string name)
-    {
-        try
-        {
-            var permission = await _permissionRepository.GetByNameAsync(name);
-            if (permission == null)
-            {
-                return NotFound($"Permission with name '{name}' not found");
-            }
-
-            var permissionDto = new PermissionDto
-            {
-                Id = permission.Id,
-                Name = permission.Name,
-                Resource = permission.Resource,
-                Action = permission.Action,
-                Description = permission.Description,
-                Category = permission.Category,
-                CreatedAt = permission.CreatedAt,
-                UpdatedAt = permission.UpdatedAt
-            };
-
-            return Ok(permissionDto);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving permission by name {PermissionName}", name);
-            return StatusCode(500, "An error occurred while retrieving the permission");
-        }
-    }
-
-    /// <summary>
-    /// Get permissions by resource
-    /// </summary>
-    [HttpGet("resource/{resource}")]
-    public async Task<ActionResult<IEnumerable<PermissionDto>>> GetPermissionsByResource(string resource)
-    {
-        try
-        {
-            var permissions = await _permissionRepository.GetByResourceAsync(resource);
-            var permissionDtos = permissions.Select(p => new PermissionDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Resource = p.Resource,
-                Action = p.Action,
-                Description = p.Description,
-                Category = p.Category,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            });
-
-            return Ok(permissionDtos);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving permissions by resource {Resource}", resource);
-            return StatusCode(500, "An error occurred while retrieving permissions");
-        }
-    }
-
-    /// <summary>
-    /// Get permissions by category
-    /// </summary>
-    [HttpGet("category/{category}")]
-    public async Task<ActionResult<IEnumerable<PermissionDto>>> GetPermissionsByCategory(string category)
-    {
-        try
-        {
-            var permissions = await _permissionRepository.GetByCategoryAsync(category);
-            var permissionDtos = permissions.Select(p => new PermissionDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Resource = p.Resource,
-                Action = p.Action,
-                Description = p.Description,
-                Category = p.Category,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            });
-
-            return Ok(permissionDtos);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving permissions by category {Category}", category);
-            return StatusCode(500, "An error occurred while retrieving permissions");
         }
     }
 }

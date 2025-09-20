@@ -420,8 +420,8 @@ public class UsersController : ControllerBase
                 return NotFound($"User with ID {id} not found");
             }
 
-            await _userRepository.DeleteAsync(user);
-            return NoContent();
+            await _userRepository.SoftDeleteAsync(user);
+            return Ok(new { message = "User moved to trash successfully" });
         }
         catch (Exception ex)
         {

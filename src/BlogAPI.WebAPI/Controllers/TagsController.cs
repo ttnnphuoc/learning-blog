@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
-using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.WebAPI.Controllers;
 
@@ -9,12 +8,12 @@ namespace BlogAPI.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class TagsController : ControllerBase
 {
-    private readonly ITagRepository _tagRepository;
+    private readonly ITagService _tagService;
     private readonly ILogger<TagsController> _logger;
 
-    public TagsController(ITagRepository tagRepository, ILogger<TagsController> logger)
+    public TagsController(ITagService tagService, ILogger<TagsController> logger)
     {
-        _tagRepository = tagRepository;
+        _tagService = tagService;
         _logger = logger;
     }
 
@@ -26,17 +25,8 @@ public class TagsController : ControllerBase
     {
         try
         {
-            var tags = await _tagRepository.GetAllAsync();
-            var tagDtos = tags.Select(t => new TagDto
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Slug = t.Slug,
-                CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt
-            });
-
-            return Ok(tagDtos);
+            var tags = await _tagService.GetAllTagsAsync();
+            return Ok(tags);
         }
         catch (Exception ex)
         {
@@ -53,22 +43,13 @@ public class TagsController : ControllerBase
     {
         try
         {
-            var tag = await _tagRepository.GetByIdAsync(id);
+            var tag = await _tagService.GetTagByIdAsync(id);
             if (tag == null)
             {
                 return NotFound($"Tag with ID {id} not found");
             }
 
-            var tagDto = new TagDto
-            {
-                Id = tag.Id,
-                Name = tag.Name,
-                Slug = tag.Slug,
-                CreatedAt = tag.CreatedAt,
-                UpdatedAt = tag.UpdatedAt
-            };
-
-            return Ok(tagDto);
+            return Ok(tag);
         }
         catch (Exception ex)
         {
@@ -85,42 +66,13 @@ public class TagsController : ControllerBase
     {
         try
         {
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(createTagDto.Name))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Tag name is required");
+                return BadRequest(ModelState);
             }
 
-            // Generate slug if not provided
-            var slug = !string.IsNullOrWhiteSpace(createTagDto.Slug) 
-                ? createTagDto.Slug 
-                : GenerateSlug(createTagDto.Name);
-
-            // Check if slug already exists
-            var existingTag = await _tagRepository.GetBySlugAsync(slug);
-            if (existingTag != null)
-            {
-                return Conflict($"A tag with slug '{slug}' already exists");
-            }
-
-            var tag = new Tag
-            {
-                Name = createTagDto.Name,
-                Slug = slug
-            };
-
-            var createdTag = await _tagRepository.AddAsync(tag);
-
-            var tagDto = new TagDto
-            {
-                Id = createdTag.Id,
-                Name = createdTag.Name,
-                Slug = createdTag.Slug,
-                CreatedAt = createdTag.CreatedAt,
-                UpdatedAt = createdTag.UpdatedAt
-            };
-
-            return CreatedAtAction(nameof(GetTag), new { id = createdTag.Id }, tagDto);
+            var tag = await _tagService.CreateTagAsync(createTagDto);
+            return CreatedAtAction(nameof(GetTag), new { id = tag.Id }, tag);
         }
         catch (Exception ex)
         {
@@ -137,41 +89,18 @@ public class TagsController : ControllerBase
     {
         try
         {
-            var tag = await _tagRepository.GetByIdAsync(id);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var tag = await _tagService.UpdateTagAsync(id, updateTagDto);
             if (tag == null)
             {
                 return NotFound($"Tag with ID {id} not found");
             }
 
-            // Update fields if provided
-            if (!string.IsNullOrWhiteSpace(updateTagDto.Name))
-            {
-                tag.Name = updateTagDto.Name;
-            }
-
-            if (!string.IsNullOrWhiteSpace(updateTagDto.Slug))
-            {
-                // Check if new slug already exists (and it's not the current tag)
-                var existingTag = await _tagRepository.GetBySlugAsync(updateTagDto.Slug);
-                if (existingTag != null && existingTag.Id != id)
-                {
-                    return Conflict($"A tag with slug '{updateTagDto.Slug}' already exists");
-                }
-                tag.Slug = updateTagDto.Slug;
-            }
-
-            var updatedTag = await _tagRepository.UpdateAsync(tag);
-
-            var tagDto = new TagDto
-            {
-                Id = updatedTag.Id,
-                Name = updatedTag.Name,
-                Slug = updatedTag.Slug,
-                CreatedAt = updatedTag.CreatedAt,
-                UpdatedAt = updatedTag.UpdatedAt
-            };
-
-            return Ok(tagDto);
+            return Ok(tag);
         }
         catch (Exception ex)
         {
@@ -181,21 +110,24 @@ public class TagsController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a tag
+    /// Delete a tag (move to trash)
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteTag(Guid id)
     {
         try
         {
-            var tag = await _tagRepository.GetByIdAsync(id);
-            if (tag == null)
+            var result = await _tagService.DeleteTagAsync(id);
+            if (!result)
             {
                 return NotFound($"Tag with ID {id} not found");
             }
 
-            await _tagRepository.DeleteAsync(tag);
-            return NoContent();
+            return Ok(new { message = "Tag moved to trash successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
         }
         catch (Exception ex)
         {
@@ -212,38 +144,18 @@ public class TagsController : ControllerBase
     {
         try
         {
-            var tag = await _tagRepository.GetBySlugAsync(slug);
+            var tag = await _tagService.GetTagBySlugAsync(slug);
             if (tag == null)
             {
                 return NotFound($"Tag with slug '{slug}' not found");
             }
 
-            var tagDto = new TagDto
-            {
-                Id = tag.Id,
-                Name = tag.Name,
-                Slug = tag.Slug,
-                CreatedAt = tag.CreatedAt,
-                UpdatedAt = tag.UpdatedAt
-            };
-
-            return Ok(tagDto);
+            return Ok(tag);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tag by slug {Slug}", slug);
             return StatusCode(500, "An error occurred while retrieving the tag");
         }
-    }
-
-    /// <summary>
-    /// Generate URL-friendly slug from text
-    /// </summary>
-    private static string GenerateSlug(string text)
-    {
-        return text.ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("_", "-")
-            .Trim('-');
     }
 }
