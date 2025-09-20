@@ -136,7 +136,8 @@ public class RoleService : IRoleService
         var permission = await _permissionRepository.GetByIdAsync(permissionId);
         if (permission == null) return false;
 
-        return await _roleRepository.AssignPermissionAsync(roleId, permissionId);
+        await _roleRepository.AddPermissionToRoleAsync(roleId, permissionId);
+        return true;
     }
 
     public async Task<bool> RemovePermissionFromRoleAsync(Guid roleId, Guid permissionId)
@@ -144,13 +145,16 @@ public class RoleService : IRoleService
         var role = await _roleRepository.GetByIdAsync(roleId);
         if (role == null) return false;
 
-        return await _roleRepository.RemovePermissionAsync(roleId, permissionId);
+        await _roleRepository.RemovePermissionFromRoleAsync(roleId, permissionId);
+        return true;
     }
 
     public async Task<IEnumerable<PermissionDto>> GetRolePermissionsAsync(Guid roleId)
     {
-        var permissions = await _roleRepository.GetRolePermissionsAsync(roleId);
-        return permissions.Select(p => new PermissionDto
+        var role = await _roleRepository.GetWithPermissionsAsync(roleId);
+        if (role?.Permissions == null) return new List<PermissionDto>();
+
+        return role.Permissions.Select(p => new PermissionDto
         {
             Id = p.Id,
             Name = p.Name,

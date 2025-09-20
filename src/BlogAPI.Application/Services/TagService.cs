@@ -73,7 +73,7 @@ public class TagService : ITagService
         });
     }
 
-    public async Task<TagDto> CreateTagAsync(CreateTagDto createTagDto)
+    public async Task<TagDto> CreateTagAsync(CreateOrUpdateTagDto createTagDto)
     {
         var tag = new Tag
         {
@@ -97,7 +97,7 @@ public class TagService : ITagService
         };
     }
 
-    public async Task<TagDto?> UpdateTagAsync(Guid id, UpdateTagDto updateTagDto)
+    public async Task<TagDto?> UpdateTagAsync(Guid id, CreateOrUpdateTagDto updateTagDto)
     {
         var tag = await _tagRepository.GetByIdAsync(id);
         if (tag == null) return null;
