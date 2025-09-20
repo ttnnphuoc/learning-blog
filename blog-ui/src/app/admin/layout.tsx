@@ -98,9 +98,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <NavLink href="/admin/posts" icon="📝">Posts</NavLink>
               <NavLink href="/admin/categories" icon="📁">Categories</NavLink>
               <NavLink href="/admin/tags" icon="🏷️">Tags</NavLink>
-              <NavLink href="/admin/users" icon="👥">Users</NavLink>
-              <NavLink href="/admin/roles" icon="🛡️">Roles</NavLink>
-              <NavLink href="/admin/permissions" icon="🔑">Permissions</NavLink>
+              
+              {/* Admin-only menu items */}
+              {RoleHelper.isAdmin(user?.roles) && (
+                <>
+                  <NavLink href="/admin/users" icon="👥">Users</NavLink>
+                  <NavLink href="/admin/roles" icon="🛡️">Roles</NavLink>
+                  <NavLink href="/admin/permissions" icon="🔑">Permissions</NavLink>
+                </>
+              )}
             </div>
           </div>
         </nav>

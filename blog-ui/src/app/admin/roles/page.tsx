@@ -6,10 +6,12 @@ import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { RoleHelper, UserRole } from '@/types';
 import type { Role, CreateRoleDto, UpdateRoleDto, Permission } from '@/types';
 
 export default function AdminRoles() {
+  const { user } = useAuth();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +180,19 @@ export default function AdminRoles() {
   useEffect(() => {
     fetchRoles();
   }, []);
+
+  // Admin-only access control
+  if (!user || !RoleHelper.isAdmin(user.roles)) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need Admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   const RoleForm = React.useMemo(() => (
     <div className="space-y-4">

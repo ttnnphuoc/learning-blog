@@ -6,10 +6,12 @@ import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { RoleHelper, UserRole } from '@/types';
 import type { User, CreateUserDto, UpdateUserDto, Role } from '@/types';
 
 export default function AdminUsers() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +105,19 @@ export default function AdminUsers() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Admin-only access control
+  if (!user || !RoleHelper.isAdmin(user.roles)) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need Admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreate = () => {
     setFormData({
