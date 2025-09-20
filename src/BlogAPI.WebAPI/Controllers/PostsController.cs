@@ -1,5 +1,6 @@
 using BlogAPI.Application.DTOs;
-using BlogAPI.Application.Services;
+using BlogAPI.Application.Interfaces;
+using BlogAPI.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,92 +10,465 @@ namespace BlogAPI.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class PostsController : ControllerBase
 {
-    private readonly IPostService _postService;
+    private readonly IPostRepository _postRepository;
+    private readonly ICategoryRepository _categoryRepository;
+    private readonly ITagRepository _tagRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger<PostsController> _logger;
 
-    public PostsController(IPostService postService)
+    public PostsController(
+        IPostRepository postRepository,
+        ICategoryRepository categoryRepository,
+        ITagRepository tagRepository,
+        IUserRepository userRepository,
+        ILogger<PostsController> logger)
     {
-        _postService = postService;
+        _postRepository = postRepository;
+        _categoryRepository = categoryRepository;
+        _tagRepository = tagRepository;
+        _userRepository = userRepository;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Get all posts
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PostDto>>> GetAllPosts([FromQuery] bool publishedOnly = false)
+    public async Task<ActionResult<IEnumerable<PostDto>>> GetPosts([FromQuery] bool publishedOnly = false)
     {
-        var posts = publishedOnly 
-            ? await _postService.GetPublishedPostsAsync()
-            : await _postService.GetAllPostsAsync();
-        
-        return Ok(posts);
+        try
+        {
+            var posts = publishedOnly 
+                ? await _postRepository.GetPublishedPostsAsync()
+                : await _postRepository.GetAllAsync();
+
+            var postDtos = await MapPostsToDto(posts);
+            return Ok(postDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving posts");
+            return StatusCode(500, "An error occurred while retrieving posts");
+        }
     }
 
-    [HttpGet("{id:guid}")]
+    /// <summary>
+    /// Get post by ID
+    /// </summary>
+    [HttpGet("{id}")]
     public async Task<ActionResult<PostDto>> GetPost(Guid id)
     {
-        var post = await _postService.GetPostByIdAsync(id);
-        if (post == null)
-            return NotFound();
+        try
+        {
+            var post = await _postRepository.GetByIdAsync(id);
+            if (post == null)
+            {
+                return NotFound($"Post with ID {id} not found");
+            }
 
-        return Ok(post);
+            var postDto = await MapPostToDto(post);
+            return Ok(postDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving post {PostId}", id);
+            return StatusCode(500, "An error occurred while retrieving the post");
+        }
     }
 
+    /// <summary>
+    /// Get post by slug
+    /// </summary>
     [HttpGet("slug/{slug}")]
     public async Task<ActionResult<PostDto>> GetPostBySlug(string slug)
     {
-        var post = await _postService.GetPostBySlugAsync(slug);
-        if (post == null)
-            return NotFound();
+        try
+        {
+            var post = await _postRepository.GetBySlugAsync(slug);
+            if (post == null)
+            {
+                return NotFound($"Post with slug '{slug}' not found");
+            }
 
-        await _postService.IncrementViewCountAsync(post.Id);
-        return Ok(post);
+            // Increment view count
+            post.ViewCount++;
+            await _postRepository.UpdateAsync(post);
+
+            var postDto = await MapPostToDto(post);
+            return Ok(postDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving post by slug {Slug}", slug);
+            return StatusCode(500, "An error occurred while retrieving the post");
+        }
     }
 
-    [HttpGet("category/{categoryId:guid}")]
-    public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsByCategory(Guid categoryId)
-    {
-        var posts = await _postService.GetPostsByCategoryAsync(categoryId);
-        return Ok(posts);
-    }
-
-    [HttpGet("tag/{tagId:guid}")]
-    public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsByTag(Guid tagId)
-    {
-        var posts = await _postService.GetPostsByTagAsync(tagId);
-        return Ok(posts);
-    }
-
+    /// <summary>
+    /// Create a new post
+    /// </summary>
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<PostDto>> CreatePost(CreatePostDto createPostDto)
     {
         try
         {
-            var post = await _postService.CreatePostAsync(createPostDto);
-            return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(createPostDto.Title))
+            {
+                return BadRequest("Title is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(createPostDto.Content))
+            {
+                return BadRequest("Content is required");
+            }
+
+            // Generate slug if not provided
+            var slug = !string.IsNullOrWhiteSpace(createPostDto.Slug) 
+                ? createPostDto.Slug 
+                : GenerateSlug(createPostDto.Title);
+
+            // Check if slug already exists
+            var existingPost = await _postRepository.GetBySlugAsync(slug);
+            if (existingPost != null)
+            {
+                return Conflict($"A post with slug '{slug}' already exists");
+            }
+
+            // Get current user ID (this would come from authentication context)
+            // For now, we'll assume the first user is the author
+            var users = await _userRepository.GetAllAsync();
+            var author = users.FirstOrDefault();
+            if (author == null)
+            {
+                return BadRequest("No users found. Please create a user first.");
+            }
+
+            var post = new Post
+            {
+                Title = createPostDto.Title,
+                Content = createPostDto.Content,
+                Summary = createPostDto.Summary,
+                Slug = slug,
+                IsPublished = createPostDto.IsPublished,
+                FeaturedImage = createPostDto.FeaturedImage,
+                ReadTimeMinutes = createPostDto.ReadTimeMinutes,
+                ViewCount = 0,
+                AuthorId = author.Id,
+                PublishedAt = createPostDto.IsPublished ? DateTime.UtcNow : null
+            };
+
+            var createdPost = await _postRepository.AddAsync(post);
+
+            // Add categories if provided
+            if (createPostDto.CategoryIds?.Count > 0)
+            {
+                foreach (var categoryId in createPostDto.CategoryIds)
+                {
+                    var category = await _categoryRepository.GetByIdAsync(categoryId);
+                    if (category != null)
+                    {
+                        await _postRepository.AddCategoryToPostAsync(createdPost.Id, categoryId);
+                    }
+                }
+            }
+
+            // Add tags if provided
+            if (createPostDto.TagIds?.Count > 0)
+            {
+                foreach (var tagId in createPostDto.TagIds)
+                {
+                    var tag = await _tagRepository.GetByIdAsync(tagId);
+                    if (tag != null)
+                    {
+                        await _postRepository.AddTagToPostAsync(createdPost.Id, tagId);
+                    }
+                }
+            }
+
+            var postDto = await MapPostToDto(createdPost);
+            return CreatedAtAction(nameof(GetPost), new { id = createdPost.Id }, postDto);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex)
         {
-            return BadRequest(ex.Message);
+            _logger.LogError(ex, "Error creating post");
+            return StatusCode(500, "An error occurred while creating the post");
         }
     }
 
-    [HttpPut("{id:guid}")]
+    /// <summary>
+    /// Update an existing post
+    /// </summary>
+    [HttpPut("{id}")]
     [Authorize]
     public async Task<ActionResult<PostDto>> UpdatePost(Guid id, UpdatePostDto updatePostDto)
     {
-        var post = await _postService.UpdatePostAsync(id, updatePostDto);
-        if (post == null)
-            return NotFound();
+        try
+        {
+            var post = await _postRepository.GetByIdAsync(id);
+            if (post == null)
+            {
+                return NotFound($"Post with ID {id} not found");
+            }
 
-        return Ok(post);
+            // Update fields if provided
+            if (!string.IsNullOrWhiteSpace(updatePostDto.Title))
+            {
+                post.Title = updatePostDto.Title;
+            }
+
+            if (!string.IsNullOrWhiteSpace(updatePostDto.Content))
+            {
+                post.Content = updatePostDto.Content;
+            }
+
+            if (updatePostDto.Summary != null)
+            {
+                post.Summary = updatePostDto.Summary;
+            }
+
+            if (!string.IsNullOrWhiteSpace(updatePostDto.Slug))
+            {
+                // Check if new slug already exists (and it's not the current post)
+                var existingPost = await _postRepository.GetBySlugAsync(updatePostDto.Slug);
+                if (existingPost != null && existingPost.Id != id)
+                {
+                    return Conflict($"A post with slug '{updatePostDto.Slug}' already exists");
+                }
+                post.Slug = updatePostDto.Slug;
+            }
+
+            if (updatePostDto.IsPublished.HasValue)
+            {
+                post.IsPublished = updatePostDto.IsPublished.Value;
+                if (updatePostDto.IsPublished.Value && post.PublishedAt == null)
+                {
+                    post.PublishedAt = DateTime.UtcNow;
+                }
+                else if (!updatePostDto.IsPublished.Value)
+                {
+                    post.PublishedAt = null;
+                }
+            }
+
+            if (updatePostDto.FeaturedImage != null)
+            {
+                post.FeaturedImage = updatePostDto.FeaturedImage;
+            }
+
+            if (updatePostDto.ReadTimeMinutes.HasValue)
+            {
+                post.ReadTimeMinutes = updatePostDto.ReadTimeMinutes.Value;
+            }
+
+            await _postRepository.UpdateAsync(post);
+
+            // Update categories if provided
+            if (updatePostDto.CategoryIds != null)
+            {
+                // Remove existing categories
+                await _postRepository.RemoveAllCategoriesFromPostAsync(id);
+
+                // Add new categories
+                foreach (var categoryId in updatePostDto.CategoryIds)
+                {
+                    var category = await _categoryRepository.GetByIdAsync(categoryId);
+                    if (category != null)
+                    {
+                        await _postRepository.AddCategoryToPostAsync(id, categoryId);
+                    }
+                }
+            }
+
+            // Update tags if provided
+            if (updatePostDto.TagIds != null)
+            {
+                // Remove existing tags
+                await _postRepository.RemoveAllTagsFromPostAsync(id);
+
+                // Add new tags
+                foreach (var tagId in updatePostDto.TagIds)
+                {
+                    var tag = await _tagRepository.GetByIdAsync(tagId);
+                    if (tag != null)
+                    {
+                        await _postRepository.AddTagToPostAsync(id, tagId);
+                    }
+                }
+            }
+
+            var updatedPost = await _postRepository.GetByIdAsync(id);
+            var postDto = await MapPostToDto(updatedPost!);
+            return Ok(postDto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating post {PostId}", id);
+            return StatusCode(500, "An error occurred while updating the post");
+        }
     }
 
-    [HttpDelete("{id:guid}")]
+    /// <summary>
+    /// Delete a post
+    /// </summary>
+    [HttpDelete("{id}")]
     [Authorize]
     public async Task<IActionResult> DeletePost(Guid id)
     {
-        var result = await _postService.DeletePostAsync(id);
-        if (!result)
-            return NotFound();
+        try
+        {
+            var post = await _postRepository.GetByIdAsync(id);
+            if (post == null)
+            {
+                return NotFound($"Post with ID {id} not found");
+            }
 
-        return NoContent();
+            await _postRepository.DeleteAsync(post);
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting post {PostId}", id);
+            return StatusCode(500, "An error occurred while deleting the post");
+        }
+    }
+
+    /// <summary>
+    /// Get posts by category
+    /// </summary>
+    [HttpGet("category/{categoryId}")]
+    public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsByCategory(Guid categoryId)
+    {
+        try
+        {
+            var posts = await _postRepository.GetByCategoryAsync(categoryId);
+            var postDtos = await MapPostsToDto(posts);
+            return Ok(postDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving posts by category {CategoryId}", categoryId);
+            return StatusCode(500, "An error occurred while retrieving posts");
+        }
+    }
+
+    /// <summary>
+    /// Get posts by tag
+    /// </summary>
+    [HttpGet("tag/{tagId}")]
+    public async Task<ActionResult<IEnumerable<PostDto>>> GetPostsByTag(Guid tagId)
+    {
+        try
+        {
+            var posts = await _postRepository.GetByTagAsync(tagId);
+            var postDtos = await MapPostsToDto(posts);
+            return Ok(postDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving posts by tag {TagId}", tagId);
+            return StatusCode(500, "An error occurred while retrieving posts");
+        }
+    }
+
+    /// <summary>
+    /// Get published posts
+    /// </summary>
+    [HttpGet("published")]
+    public async Task<ActionResult<IEnumerable<PostDto>>> GetPublishedPosts()
+    {
+        try
+        {
+            var posts = await _postRepository.GetPublishedPostsAsync();
+            var postDtos = await MapPostsToDto(posts);
+            return Ok(postDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving published posts");
+            return StatusCode(500, "An error occurred while retrieving published posts");
+        }
+    }
+
+    /// <summary>
+    /// Generate URL-friendly slug from text
+    /// </summary>
+    private static string GenerateSlug(string text)
+    {
+        return text.ToLowerInvariant()
+            .Replace(" ", "-")
+            .Replace("_", "-")
+            .Trim('-');
+    }
+
+    /// <summary>
+    /// Map a single post entity to DTO
+    /// </summary>
+    private async Task<PostDto> MapPostToDto(Post post)
+    {
+        var author = await _userRepository.GetByIdAsync(post.AuthorId);
+        var categories = await _postRepository.GetCategoriesByPostAsync(post.Id);
+        var tags = await _postRepository.GetTagsByPostAsync(post.Id);
+
+        return new PostDto
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Content = post.Content,
+            Summary = post.Summary,
+            Slug = post.Slug,
+            IsPublished = post.IsPublished,
+            PublishedAt = post.PublishedAt,
+            FeaturedImage = post.FeaturedImage,
+            ReadTimeMinutes = post.ReadTimeMinutes,
+            ViewCount = post.ViewCount,
+            CreatedAt = post.CreatedAt,
+            UpdatedAt = post.UpdatedAt,
+            Author = new UserDto
+            {
+                Id = author!.Id,
+                Username = author.Username,
+                Email = author.Email,
+                FirstName = author.FirstName,
+                LastName = author.LastName,
+                Bio = author.Bio,
+                IsEmailConfirmed = author.IsEmailConfirmed,
+                LastLoginAt = author.LastLoginAt,
+                IsActive = author.IsActive,
+                CreatedAt = author.CreatedAt,
+                UpdatedAt = author.UpdatedAt
+            },
+            Categories = categories.Select(c => new CategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                Slug = c.Slug,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            }).ToList(),
+            Tags = tags.Select(t => new TagDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Slug = t.Slug,
+                CreatedAt = t.CreatedAt,
+                UpdatedAt = t.UpdatedAt
+            }).ToList()
+        };
+    }
+
+    /// <summary>
+    /// Map multiple post entities to DTOs
+    /// </summary>
+    private async Task<IEnumerable<PostDto>> MapPostsToDto(IEnumerable<Post> posts)
+    {
+        var postDtos = new List<PostDto>();
+        foreach (var post in posts)
+        {
+            postDtos.Add(await MapPostToDto(post));
+        }
+        return postDtos;
     }
 }

@@ -6,8 +6,12 @@ import type {
   PostQueryParams,
   Category,
   CategoryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
   Tag,
   TagDto,
+  CreateTagDto,
+  UpdateTagDto,
   LoginDto,
   RegisterDto,
   AuthResult,
@@ -15,6 +19,14 @@ import type {
   ForgotPasswordDto,
   ResetPasswordDto,
   User,
+  CreateUserDto,
+  UpdateUserDto,
+  Role,
+  CreateRoleDto,
+  UpdateRoleDto,
+  Permission,
+  CreatePermissionDto,
+  UpdatePermissionDto,
   ApiResponse,
   PaginatedResponse
 } from '@/types';
@@ -276,7 +288,7 @@ class ApiClient {
     });
   }
 
-  // Categories endpoints (assuming they exist)
+  // Categories endpoints
   async getCategories(): Promise<CategoryDto[]> {
     return this.request<CategoryDto[]>('/api/categories');
   }
@@ -285,13 +297,163 @@ class ApiClient {
     return this.request<CategoryDto>(`/api/categories/${id}`);
   }
 
-  // Tags endpoints (assuming they exist)
+  async createCategory(categoryData: CreateCategoryDto): Promise<CategoryDto> {
+    return this.request<CategoryDto>('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  async updateCategory(id: string, categoryData: UpdateCategoryDto): Promise<CategoryDto> {
+    return this.request<CategoryDto>(`/api/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await this.request<void>(`/api/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Tags endpoints
   async getTags(): Promise<TagDto[]> {
     return this.request<TagDto[]>('/api/tags');
   }
 
   async getTag(id: string): Promise<TagDto> {
     return this.request<TagDto>(`/api/tags/${id}`);
+  }
+
+  async createTag(tagData: CreateTagDto): Promise<TagDto> {
+    return this.request<TagDto>('/api/tags', {
+      method: 'POST',
+      body: JSON.stringify(tagData),
+    });
+  }
+
+  async updateTag(id: string, tagData: UpdateTagDto): Promise<TagDto> {
+    return this.request<TagDto>(`/api/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(tagData),
+    });
+  }
+
+  async deleteTag(id: string): Promise<void> {
+    await this.request<void>(`/api/tags/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Users endpoints
+  async getUsers(): Promise<User[]> {
+    return this.request<User[]>('/api/users');
+  }
+
+  async getUser(id: string): Promise<User> {
+    return this.request<User>(`/api/users/${id}`);
+  }
+
+  async createUser(userData: CreateUserDto): Promise<User> {
+    return this.request<User>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(id: string, userData: UpdateUserDto): Promise<User> {
+    return this.request<User>(`/api/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.request<void>(`/api/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request<User>('/api/users/me');
+  }
+
+  // Roles endpoints
+  async getRoles(): Promise<Role[]> {
+    return this.request<Role[]>('/api/roles');
+  }
+
+  async getRole(id: string): Promise<Role> {
+    return this.request<Role>(`/api/roles/${id}`);
+  }
+
+  async createRole(roleData: CreateRoleDto): Promise<Role> {
+    return this.request<Role>('/api/roles', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  async updateRole(id: string, roleData: UpdateRoleDto): Promise<Role> {
+    return this.request<Role>(`/api/roles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData),
+    });
+  }
+
+  async deleteRole(id: string): Promise<void> {
+    await this.request<void>(`/api/roles/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Permissions endpoints
+  async getPermissions(): Promise<Permission[]> {
+    return this.request<Permission[]>('/api/permissions');
+  }
+
+  async getPermission(id: string): Promise<Permission> {
+    return this.request<Permission>(`/api/permissions/${id}`);
+  }
+
+  async createPermission(permissionData: CreatePermissionDto): Promise<Permission> {
+    return this.request<Permission>('/api/permissions', {
+      method: 'POST',
+      body: JSON.stringify(permissionData),
+    });
+  }
+
+  async updatePermission(id: string, permissionData: UpdatePermissionDto): Promise<Permission> {
+    return this.request<Permission>(`/api/permissions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(permissionData),
+    });
+  }
+
+  async deletePermission(id: string): Promise<void> {
+    await this.request<void>(`/api/permissions/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Role-Permission management
+  async assignPermissionsToRole(roleId: string, permissionIds: string[]): Promise<void> {
+    await this.request<void>(`/api/roles/${roleId}/permissions`, {
+      method: 'POST',
+      body: JSON.stringify({ permissionIds }),
+    });
+  }
+
+  async removePermissionsFromRole(roleId: string, permissionIds: string[]): Promise<void> {
+    await this.request<void>(`/api/roles/${roleId}/permissions`, {
+      method: 'DELETE',
+      body: JSON.stringify({ permissionIds }),
+    });
+  }
+
+  async getRolePermissions(roleId: string): Promise<Permission[]> {
+    return this.request<Permission[]>(`/api/roles/${roleId}/permissions`);
   }
 }
 

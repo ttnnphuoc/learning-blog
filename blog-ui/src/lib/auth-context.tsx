@@ -42,14 +42,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             const validation = await apiClient.validateToken();
             if (validation.valid) {
-              // Token is valid, get user info (you might want to store user info in localStorage too)
-              setAuthState(prev => ({
-                ...prev,
-                isAuthenticated: true,
-                token,
-                refreshToken,
-                loading: false,
-              }));
+              // Token is valid, get user info
+              try {
+                const user = await apiClient.getCurrentUser();
+                setAuthState(prev => ({
+                  ...prev,
+                  isAuthenticated: true,
+                  user,
+                  token,
+                  refreshToken,
+                  loading: false,
+                }));
+              } catch (userError) {
+                // Failed to get user info, clear tokens
+                clearAuthTokens();
+                setAuthState(prev => ({
+                  ...prev,
+                  loading: false,
+                }));
+              }
             } else {
               // Token invalid, clear everything
               clearAuthTokens();
@@ -198,10 +209,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (result.success && result.accessToken && result.refreshToken) {
         setAuthTokens(result.accessToken, result.refreshToken);
+        
+        // Try to get current user data
+        let user = result.user;
+        if (!user) {
+          try {
+            user = await apiClient.getCurrentUser();
+          } catch (userError) {
+            console.error('Failed to get user data after refresh:', userError);
+          }
+        }
+        
         setAuthState(prev => ({
           ...prev,
           isAuthenticated: true,
-          user: result.user || prev.user,
+          user: user || prev.user,
           token: result.accessToken!,
           refreshToken: result.refreshToken!,
           loading: false,

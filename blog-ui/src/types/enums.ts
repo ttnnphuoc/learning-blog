@@ -6,12 +6,14 @@ export enum UserRole {
   READER = 'Reader'
 }
 
+
 // Helper functions for role checking
 export class RoleHelper {
   /**
    * Check if user has admin access (Admin or Moderator)
    */
   static hasAdminAccess(roles: { name: string }[] = []): boolean {
+    debugger;
     return roles.some(role => 
       role.name === UserRole.ADMIN || role.name === UserRole.MODERATOR
     );
@@ -115,5 +117,41 @@ export class RoleHelper {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  }
+
+  /**
+   * Check if user has specific permission
+   */
+  static hasPermission(roles: { permissions?: { name: string }[] }[] = [], permissionName: string): boolean {
+    return roles.some(role => 
+      role.permissions?.some(permission => permission.name === permissionName)
+    );
+  }
+
+  /**
+   * Get all permissions for user roles
+   */
+  static getUserPermissions(roles: { permissions?: { name: string }[] }[] = []): string[] {
+    const permissions = new Set<string>();
+    roles.forEach(role => {
+      role.permissions?.forEach(permission => {
+        permissions.add(permission.name);
+      });
+    });
+    return Array.from(permissions);
+  }
+
+  /**
+   * Check if user has any of the specified permissions
+   */
+  static hasAnyPermission(roles: { permissions?: { name: string }[] }[] = [], permissionNames: string[]): boolean {
+    return permissionNames.some(permission => this.hasPermission(roles, permission));
+  }
+
+  /**
+   * Check if user has all of the specified permissions
+   */
+  static hasAllPermissions(roles: { permissions?: { name: string }[] }[] = [], permissionNames: string[]): boolean {
+    return permissionNames.every(permission => this.hasPermission(roles, permission));
   }
 }

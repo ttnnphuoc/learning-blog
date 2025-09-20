@@ -50,4 +50,61 @@ public class UserRepository : Repository<User>, IUserRepository
             .Where(u => u.UserRoles.Any(ur => ur.Role.Name.ToLower() == roleName.ToLower()))
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<User>> GetActiveUsersAsync()
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .Where(u => u.IsActive)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<User>> GetUsersByRoleAsync(Guid roleId)
+    {
+        return await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .Where(u => u.UserRoles.Any(ur => ur.RoleId == roleId))
+            .ToListAsync();
+    }
+
+    public async Task AddRoleToUserAsync(Guid userId, Guid roleId)
+    {
+        var userRole = new UserRole
+        {
+            UserId = userId,
+            RoleId = roleId
+        };
+
+        _context.UserRoles.Add(userRole);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RemoveRoleFromUserAsync(Guid userId, Guid roleId)
+    {
+        var userRole = await _context.UserRoles
+            .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == roleId);
+
+        if (userRole != null)
+        {
+            _context.UserRoles.Remove(userRole);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> ValidatePasswordAsync(User user, string password)
+    {
+        // This would typically use a password hashing library like BCrypt
+        // For now, we'll do a simple hash comparison
+        return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+    }
+
+    public async Task UpdatePasswordAsync(User user, string newPassword)
+    {
+        // Hash the new password
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
 }

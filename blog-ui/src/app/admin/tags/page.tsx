@@ -1,47 +1,41 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminTable, Column } from '@/components/admin/admin-table';
 import { AdminModal } from '@/components/admin/admin-modal';
 import { DeleteConfirmModal } from '@/components/admin/delete-confirm-modal';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api';
-import type { CategoryDto, CreateCategoryDto, UpdateCategoryDto } from '@/types';
+import type { TagDto, CreateTagDto, UpdateTagDto } from '@/types';
 
-export default function AdminCategories() {
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+export default function AdminTags() {
+  const [tags, setTags] = useState<TagDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryDto | null>(null);
-  const [formData, setFormData] = useState<CreateCategoryDto>({
+  const [selectedTag, setSelectedTag] = useState<TagDto | null>(null);
+  const [formData, setFormData] = useState<CreateTagDto>({
     name: '',
-    description: '',
     slug: '',
   });
   const [formLoading, setFormLoading] = useState(false);
 
-  const columns: Column<CategoryDto>[] = [
+  const columns: Column<TagDto>[] = [
     {
       key: 'name',
       title: 'Name',
+      render: (value) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+          #{value}
+        </span>
+      ),
     },
     {
       key: 'slug',
       title: 'Slug',
       render: (value) => (
         <span className="text-blue-600 font-mono text-sm">{value}</span>
-      ),
-    },
-    {
-      key: 'description',
-      title: 'Description',
-      render: (value) => (
-        <span className="text-gray-600 truncate max-w-xs block">
-          {value || 'No description'}
-        </span>
       ),
     },
     {
@@ -60,13 +54,13 @@ export default function AdminCategories() {
     },
   ];
 
-  const fetchCategories = async () => {
+  const fetchTags = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getCategories();
-      setCategories(data);
+      const data = await apiClient.getTags();
+      setTags(data);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      console.error('Failed to fetch tags:', error);
     } finally {
       setLoading(false);
     }
@@ -75,33 +69,26 @@ export default function AdminCategories() {
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
-      .normalize('NFD') // Normalize Vietnamese characters
-      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-      .replace(/đ/g, 'd') // Replace đ with d
-      .replace(/Đ/g, 'd') // Replace Đ with d
-      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
-      .replace(/(^-|-$)/g, ''); // Remove leading/trailing hyphens
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
   };
 
   const handleCreate = () => {
-    setFormData({ name: '', description: '', slug: '' });
-    setFormLoading(false);
+    setFormData({ name: '', slug: '' });
     setIsCreateModalOpen(true);
   };
 
-  const handleEdit = (category: CategoryDto) => {
-    setSelectedCategory(category);
+  const handleEdit = (tag: TagDto) => {
+    setSelectedTag(tag);
     setFormData({
-      name: category.name,
-      description: category.description || '',
-      slug: category.slug,
+      name: tag.name,
+      slug: tag.slug,
     });
-    setFormLoading(false);
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (category: CategoryDto) => {
-    setSelectedCategory(category);
+  const handleDelete = (tag: TagDto) => {
+    setSelectedTag(tag);
     setIsDeleteModalOpen(true);
   };
 
@@ -109,74 +96,70 @@ export default function AdminCategories() {
     try {
       setFormLoading(true);
       const slug = formData.slug || generateSlug(formData.name);
-      await apiClient.createCategory({ ...formData, slug });
+      await apiClient.createTag({ ...formData, slug });
       setIsCreateModalOpen(false);
-      fetchCategories();
+      fetchTags();
     } catch (error) {
-      console.error('Failed to create category:', error);
+      console.error('Failed to create tag:', error);
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleSubmitEdit = async () => {
-    if (!selectedCategory) return;
+    if (!selectedTag) return;
 
     try {
       setFormLoading(true);
       const slug = formData.slug || generateSlug(formData.name);
-      await apiClient.updateCategory(selectedCategory.id, { 
+      await apiClient.updateTag(selectedTag.id, { 
         ...formData, 
-        id: selectedCategory.id,
+        id: selectedTag.id,
         slug 
       });
       setIsEditModalOpen(false);
-      setSelectedCategory(null);
-      fetchCategories();
+      setSelectedTag(null);
+      fetchTags();
     } catch (error) {
-      console.error('Failed to update category:', error);
+      console.error('Failed to update tag:', error);
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedCategory) return;
+    if (!selectedTag) return;
 
     try {
       setFormLoading(true);
-      await apiClient.deleteCategory(selectedCategory.id);
+      await apiClient.deleteTag(selectedTag.id);
       setIsDeleteModalOpen(false);
-      setSelectedCategory(null);
-      fetchCategories();
+      setSelectedTag(null);
+      fetchTags();
     } catch (error) {
-      console.error('Failed to delete category:', error);
+      console.error('Failed to delete tag:', error);
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleFormChange = useCallback((field: keyof CreateCategoryDto) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  const handleFormChange = (field: keyof CreateTagDto) => (
+    e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = e.target.value;
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      
-      // Auto-generate slug when name changes and slug is empty
-      if (field === 'name') {
-        newData.slug = generateSlug(value);
-      }
-      
-      return newData;
-    });
-  }, []);
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-generate slug when name changes
+    if (field === 'name' && !formData.slug) {
+      setFormData(prev => ({ ...prev, slug: generateSlug(value) }));
+    }
+  };
 
   useEffect(() => {
-    fetchCategories();
+    fetchTags();
   }, []);
 
-  const CategoryForm = React.useMemo(() => (
+  const TagForm = () => (
     <div className="space-y-4">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -184,12 +167,9 @@ export default function AdminCategories() {
         </label>
         <Input
           id="name"
-          name="name"
           value={formData.name}
           onChange={handleFormChange('name')}
-          placeholder="Category name"
-          autoComplete="off"
-          disabled={formLoading}
+          placeholder="Tag name"
           required
         />
       </div>
@@ -200,47 +180,27 @@ export default function AdminCategories() {
         </label>
         <Input
           id="slug"
-          name="slug"
           value={formData.slug}
           onChange={handleFormChange('slug')}
           placeholder="URL-friendly slug (auto-generated if empty)"
-          autoComplete="off"
-          disabled={formLoading}
         />
         <p className="text-xs text-gray-500 mt-1">
           Used in URLs. Leave empty to auto-generate from name.
         </p>
       </div>
-      
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-          Description
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleFormChange('description')}
-          placeholder="Category description"
-          autoComplete="off"
-          disabled={formLoading}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        />
-      </div>
     </div>
-  ), [formData, formLoading]);
+  );
 
   return (
     <div>
       <AdminTable
-        data={categories}
+        data={tags}
         columns={columns}
         loading={loading}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCreate={handleCreate}
-        title="Categories"
+        title="Tags"
       />
 
       {/* Create Modal */}
@@ -248,10 +208,10 @@ export default function AdminCategories() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleSubmitCreate}
-        title="Create Category"
+        title="Create Tag"
         loading={formLoading}
       >
-        {CategoryForm}
+        <TagForm />
       </AdminModal>
 
       {/* Edit Modal */}
@@ -259,13 +219,13 @@ export default function AdminCategories() {
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
-          setSelectedCategory(null);
+          setSelectedTag(null);
         }}
         onSubmit={handleSubmitEdit}
-        title="Edit Category"
+        title="Edit Tag"
         loading={formLoading}
       >
-        {CategoryForm}
+        <TagForm />
       </AdminModal>
 
       {/* Delete Modal */}
@@ -273,11 +233,11 @@ export default function AdminCategories() {
         isOpen={isDeleteModalOpen}
         onClose={() => {
           setIsDeleteModalOpen(false);
-          setSelectedCategory(null);
+          setSelectedTag(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Category"
-        message={`Are you sure you want to delete the category "${selectedCategory?.name}"? This action cannot be undone.`}
+        title="Tag"
+        message={`Are you sure you want to delete the tag "${selectedTag?.name}"? This action cannot be undone.`}
         loading={formLoading}
       />
     </div>

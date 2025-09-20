@@ -19,7 +19,7 @@ public class TagRepository : Repository<Tag>, ITagRepository
     public async Task<IEnumerable<Tag>> GetTagsByPostIdAsync(Guid postId)
     {
         return await _dbSet
-            .Where(t => t.Posts.Any(p => p.Id == postId))
+            .Where(t => t.PostTags.Any(pt => pt.PostId == postId))
             .ToListAsync();
     }
 }

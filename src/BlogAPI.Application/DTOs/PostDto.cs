@@ -15,7 +15,8 @@ public class PostDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     
-    public CategoryDto Category { get; set; } = null!;
+    public UserDto Author { get; set; } = null!;
+    public List<CategoryDto> Categories { get; set; } = new();
     public List<TagDto> Tags { get; set; } = new();
 }
 
@@ -28,7 +29,7 @@ public class CreatePostDto
     public bool IsPublished { get; set; }
     public string FeaturedImage { get; set; } = string.Empty;
     public int ReadTimeMinutes { get; set; }
-    public Guid CategoryId { get; set; }
+    public List<Guid> CategoryIds { get; set; } = new();
     public List<Guid> TagIds { get; set; } = new();
 }
 
@@ -41,6 +42,6 @@ public class UpdatePostDto
     public bool? IsPublished { get; set; }
     public string? FeaturedImage { get; set; }
     public int? ReadTimeMinutes { get; set; }
-    public Guid? CategoryId { get; set; }
+    public List<Guid>? CategoryIds { get; set; }
     public List<Guid>? TagIds { get; set; }
 }

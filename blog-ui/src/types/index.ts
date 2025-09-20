@@ -24,6 +24,14 @@ export interface User extends BaseEntity {
 export interface Role extends BaseEntity {
   name: UserRole;
   description: string;
+  permissions?: Permission[];
+}
+
+// Permission types
+export interface Permission extends BaseEntity {
+  name: string;
+  description: string;
+  category: string; // e.g., 'User Management', 'Post Management', etc.
 }
 
 // Authentication types
@@ -107,6 +115,16 @@ export interface Category extends BaseEntity {
   postCount?: number;
 }
 
+export interface CreateCategoryDto {
+  name: string;
+  description?: string;
+  slug?: string;
+}
+
+export interface UpdateCategoryDto extends Partial<CreateCategoryDto> {
+  id: string;
+}
+
 export interface CategoryDto extends Category {}
 
 // Tag types
@@ -116,7 +134,54 @@ export interface Tag extends BaseEntity {
   postCount?: number;
 }
 
+export interface CreateTagDto {
+  name: string;
+  slug?: string;
+}
+
+export interface UpdateTagDto extends Partial<CreateTagDto> {
+  id: string;
+}
+
 export interface TagDto extends Tag {}
+
+// User DTOs
+export interface CreateUserDto {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  bio?: string;
+  roleIds: string[];
+}
+
+export interface UpdateUserDto extends Partial<Omit<CreateUserDto, 'password'>> {
+  id: string;
+  password?: string;
+}
+
+// Role DTOs
+export interface CreateRoleDto {
+  name: string;
+  description: string;
+  permissionIds?: string[];
+}
+
+export interface UpdateRoleDto extends Partial<CreateRoleDto> {
+  id: string;
+}
+
+// Permission DTOs
+export interface CreatePermissionDto {
+  name: string;
+  description: string;
+  category: string;
+}
+
+export interface UpdatePermissionDto extends Partial<CreatePermissionDto> {
+  id: string;
+}
 
 // API Response types
 export interface ApiResponse<T = any> {

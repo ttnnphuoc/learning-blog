@@ -17,6 +17,8 @@ public class BlogDbContext : DbContext
     public DbSet<Permission> Permissions { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
+    public DbSet<PostCategory> PostCategories { get; set; }
+    public DbSet<PostTag> PostTags { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -30,20 +32,11 @@ public class BlogDbContext : DbContext
             entity.Property(e => e.Slug).IsRequired().HasMaxLength(200);
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.Property(e => e.FeaturedImage).HasMaxLength(500);
-            
-            entity.HasOne(e => e.Category)
-                  .WithMany(c => c.Posts)
-                  .HasForeignKey(e => e.CategoryId)
-                  .OnDelete(DeleteBehavior.Restrict);
                   
             entity.HasOne(e => e.Author)
                   .WithMany(u => u.Posts)
                   .HasForeignKey(e => e.AuthorId)
                   .OnDelete(DeleteBehavior.Restrict);
-                  
-            entity.HasMany(e => e.Tags)
-                  .WithMany(t => t.Posts)
-                  .UsingEntity(j => j.ToTable("PostTags"));
         });
 
         modelBuilder.Entity<Category>(entity =>
@@ -71,6 +64,7 @@ public class BlogDbContext : DbContext
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Bio).HasMaxLength(1000);
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
         });
@@ -90,6 +84,7 @@ public class BlogDbContext : DbContext
             entity.Property(e => e.Resource).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Action).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.Category).HasMaxLength(100);
             entity.HasIndex(e => new { e.Resource, e.Action }).IsUnique();
         });
 
@@ -130,6 +125,32 @@ public class BlogDbContext : DbContext
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.Token).IsUnique();
+        });
+
+        modelBuilder.Entity<PostCategory>(entity =>
+        {
+            entity.HasKey(e => new { e.PostId, e.CategoryId });
+            entity.HasOne(e => e.Post)
+                  .WithMany(p => p.PostCategories)
+                  .HasForeignKey(e => e.PostId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Category)
+                  .WithMany(c => c.PostCategories)
+                  .HasForeignKey(e => e.CategoryId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PostTag>(entity =>
+        {
+            entity.HasKey(e => new { e.PostId, e.TagId });
+            entity.HasOne(e => e.Post)
+                  .WithMany(p => p.PostTags)
+                  .HasForeignKey(e => e.PostId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Tag)
+                  .WithMany(t => t.PostTags)
+                  .HasForeignKey(e => e.TagId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         base.OnModelCreating(modelBuilder);

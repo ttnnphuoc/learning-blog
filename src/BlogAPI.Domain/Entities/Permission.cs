@@ -6,7 +6,8 @@ public class Permission : BaseEntity
     public string Resource { get; set; } = string.Empty; // Posts, Categories, Users, etc.
     public string Action { get; set; } = string.Empty; // Create, Read, Update, Delete
     public string Description { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty; // Content, User Management, etc.
     
     // Navigation properties
-    public ICollection<RolePermission> RolePermissions { get; set; } = new List<RolePermission>();
+    public ICollection<RolePermission> RolePermissions { get; set; } = [];
 }
