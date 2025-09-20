@@ -15,9 +15,14 @@ public class PostDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     
-    public UserDto Author { get; set; } = null!;
-    public List<CategoryDto> Categories { get; set; } = new();
-    public List<TagDto> Tags { get; set; } = new();
+    // Soft Delete Fields
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    
+    public Guid AuthorId { get; set; }
+    public UserDto? Author { get; set; }
+    public List<CategoryDto> Categories { get; set; } = [];
+    public List<TagDto> Tags { get; set; } = [];
 }
 
 public class CreatePostDto

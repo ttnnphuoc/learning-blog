@@ -310,7 +310,7 @@ public class PostsController : ControllerBase
     }
 
     /// <summary>
-    /// Delete a post
+    /// Move post to trash (soft delete)
     /// </summary>
     [HttpDelete("{id}")]
     [Authorize]
@@ -324,13 +324,118 @@ public class PostsController : ControllerBase
                 return NotFound($"Post with ID {id} not found");
             }
 
-            await _postRepository.DeleteAsync(post);
-            return NoContent();
+            await _postRepository.SoftDeleteAsync(post);
+            return Ok(new { message = "Post moved to trash successfully" });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting post {PostId}", id);
             return StatusCode(500, "An error occurred while deleting the post");
+        }
+    }
+
+    /// <summary>
+    /// Get all trashed posts
+    /// </summary>
+    [HttpGet("trash")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<PostDto>>> GetTrashedPosts()
+    {
+        try
+        {
+            var posts = await _postRepository.GetTrashedAsync();
+            var postDtos = posts.Select(p => new PostDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Content = p.Content,
+                Summary = p.Summary,
+                Slug = p.Slug,
+                IsPublished = p.IsPublished,
+                PublishedAt = p.PublishedAt,
+                FeaturedImage = p.FeaturedImage,
+                ReadTimeMinutes = p.ReadTimeMinutes,
+                ViewCount = p.ViewCount,
+                AuthorId = p.AuthorId,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                IsDeleted = p.IsDeleted,
+                DeletedAt = p.DeletedAt,
+                Categories = p.PostCategories?.Select(pc => new CategoryDto
+                {
+                    Id = pc.Category.Id,
+                    Name = pc.Category.Name,
+                    Description = pc.Category.Description,
+                    Slug = pc.Category.Slug,
+                    CreatedAt = pc.Category.CreatedAt,
+                    UpdatedAt = pc.Category.UpdatedAt
+                }).ToList() ?? [],
+                Tags = p.PostTags?.Select(pt => new TagDto
+                {
+                    Id = pt.Tag.Id,
+                    Name = pt.Tag.Name,
+                    Slug = pt.Tag.Slug,
+                    CreatedAt = pt.Tag.CreatedAt,
+                    UpdatedAt = pt.Tag.UpdatedAt
+                }).ToList() ?? []
+            });
+
+            return Ok(postDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving trashed posts");
+            return StatusCode(500, "An error occurred while retrieving trashed posts");
+        }
+    }
+
+    /// <summary>
+    /// Restore a post from trash
+    /// </summary>
+    [HttpPatch("{id}/restore")]
+    [Authorize]
+    public async Task<IActionResult> RestorePost(Guid id)
+    {
+        try
+        {
+            var post = await _postRepository.GetTrashedByIdAsync(id);
+            if (post == null)
+            {
+                return NotFound($"Trashed post with ID {id} not found");
+            }
+
+            await _postRepository.RestoreAsync(post);
+            return Ok(new { message = "Post restored successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring post {PostId}", id);
+            return StatusCode(500, "An error occurred while restoring the post");
+        }
+    }
+
+    /// <summary>
+    /// Permanently delete a post from trash
+    /// </summary>
+    [HttpDelete("{id}/permanent")]
+    [Authorize]
+    public async Task<IActionResult> PermanentlyDeletePost(Guid id)
+    {
+        try
+        {
+            var post = await _postRepository.GetTrashedByIdAsync(id);
+            if (post == null)
+            {
+                return NotFound($"Trashed post with ID {id} not found");
+            }
+
+            await _postRepository.DeleteAsync(post);
+            return Ok(new { message = "Post permanently deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error permanently deleting post {PostId}", id);
+            return StatusCode(500, "An error occurred while permanently deleting the post");
         }
     }
 

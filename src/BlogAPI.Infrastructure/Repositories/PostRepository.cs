@@ -16,12 +16,13 @@ public class PostRepository : Repository<Post>, IPostRepository
         return await _dbSet
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .FirstOrDefaultAsync(p => p.Id == id);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
     }
 
     public override async Task<IEnumerable<Post>> GetAllAsync()
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted)
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
             .OrderByDescending(p => p.CreatedAt)
@@ -31,9 +32,9 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<IEnumerable<Post>> GetPublishedPostsAsync()
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted && p.IsPublished)
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .Where(p => p.IsPublished)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .ToListAsync();
     }
@@ -41,9 +42,9 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<IEnumerable<Post>> GetPostsByCategoryAsync(Guid categoryId)
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted && p.IsPublished && p.PostCategories.Any(pc => pc.CategoryId == categoryId))
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .Where(p => p.PostCategories.Any(pc => pc.CategoryId == categoryId) && p.IsPublished)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .ToListAsync();
     }
@@ -51,9 +52,9 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<IEnumerable<Post>> GetPostsByTagAsync(Guid tagId)
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted && p.IsPublished && p.PostTags.Any(pt => pt.TagId == tagId))
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .Where(p => p.PostTags.Any(pt => pt.TagId == tagId) && p.IsPublished)
             .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .ToListAsync();
     }
@@ -61,9 +62,9 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<IEnumerable<Post>> GetByCategoryAsync(Guid categoryId)
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted && p.PostCategories.Any(pc => pc.CategoryId == categoryId))
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .Where(p => p.PostCategories.Any(pc => pc.CategoryId == categoryId))
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
@@ -71,9 +72,9 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<IEnumerable<Post>> GetByTagAsync(Guid tagId)
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted && p.PostTags.Any(pt => pt.TagId == tagId))
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
-            .Where(p => p.PostTags.Any(pt => pt.TagId == tagId))
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
@@ -81,6 +82,7 @@ public class PostRepository : Repository<Post>, IPostRepository
     public async Task<Post?> GetBySlugAsync(string slug)
     {
         return await _dbSet
+            .Where(p => !p.IsDeleted)
             .Include(p => p.PostCategories).ThenInclude(pc => pc.Category)
             .Include(p => p.PostTags).ThenInclude(pt => pt.Tag)
             .FirstOrDefaultAsync(p => p.Slug == slug);
@@ -88,7 +90,7 @@ public class PostRepository : Repository<Post>, IPostRepository
 
     public async Task IncrementViewCountAsync(Guid postId)
     {
-        var post = await _dbSet.FindAsync(postId);
+        var post = await _dbSet.FirstOrDefaultAsync(p => p.Id == postId && !p.IsDeleted);
         if (post != null)
         {
             post.ViewCount++;
