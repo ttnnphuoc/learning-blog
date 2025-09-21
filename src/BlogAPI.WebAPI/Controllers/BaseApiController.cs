@@ -8,14 +8,9 @@ namespace BlogAPI.WebAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public abstract class BaseApiController : ControllerBase
+public abstract class BaseApiController(ILogger logger) : ControllerBase
 {
-    protected readonly ILogger Logger;
-
-    protected BaseApiController(ILogger logger)
-    {
-        Logger = logger;
-    }
+    protected readonly ILogger Logger = logger;
 
     /// <summary>
     /// Gets the current user ID from JWT claims
@@ -130,7 +125,7 @@ public abstract class BaseApiController : ControllerBase
     /// <returns>True if user has any of the roles, false otherwise</returns>
     protected bool HasAnyRole(params string[] roles)
     {
-        return roles.Any(role => HasRole(role));
+        return roles.Any(HasRole);
     }
 
     /// <summary>
@@ -140,6 +135,19 @@ public abstract class BaseApiController : ControllerBase
     /// <param name="operation">The operation being performed (for logging)</param>
     /// <returns>Appropriate HTTP response</returns>
     protected IActionResult HandleAuthorizationException(UnauthorizedAccessException ex, string operation)
+    {
+        Logger.LogWarning("Unauthorized attempt to {Operation}: {Message}", operation, ex.Message);
+        return Forbid($"You are not authorized to {operation}");
+    }
+
+    /// <summary>
+    /// Handles common authorization exceptions and returns appropriate HTTP responses for generic ActionResult
+    /// </summary>
+    /// <typeparam name="T">The expected return type</typeparam>
+    /// <param name="ex">The exception to handle</param>
+    /// <param name="operation">The operation being performed (for logging)</param>
+    /// <returns>Appropriate HTTP response</returns>
+    protected ActionResult<T> HandleAuthorizationException<T>(UnauthorizedAccessException ex, string operation)
     {
         Logger.LogWarning("Unauthorized attempt to {Operation}: {Message}", operation, ex.Message);
         return Forbid($"You are not authorized to {operation}");

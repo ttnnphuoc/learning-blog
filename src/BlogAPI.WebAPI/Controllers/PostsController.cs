@@ -240,7 +240,7 @@ public class PostsController : BaseApiController
         }
         catch (UnauthorizedAccessException ex)
         {
-            return HandleAuthorizationException(ex, "update this post");
+            return HandleAuthorizationException<PostDto>(ex, "update this post");
         }
         catch (Exception ex)
         {
