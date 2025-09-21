@@ -2,20 +2,18 @@ using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace BlogAPI.WebAPI.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class PostsController : ControllerBase
+public class PostsController : BaseApiController
 {
     private readonly IPostService _postService;
-    private readonly ILogger<PostsController> _logger;
 
-    public PostsController(IPostService postService, ILogger<PostsController> logger)
+    public PostsController(IPostService postService, ILogger<PostsController> logger) 
+        : base(logger)
     {
         _postService = postService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -34,7 +32,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving posts");
+            Logger.LogError(ex, "Error retrieving posts");
             return StatusCode(500, "An error occurred while retrieving posts");
         }
     }
@@ -57,7 +55,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving post {PostId}", id);
+            Logger.LogError(ex, "Error retrieving post {PostId}", id);
             return StatusCode(500, "An error occurred while retrieving the post");
         }
     }
@@ -80,7 +78,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving post by slug {Slug}", slug);
+            Logger.LogError(ex, "Error retrieving post by slug {Slug}", slug);
             return StatusCode(500, "An error occurred while retrieving the post");
         }
     }
@@ -98,7 +96,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving posts by category {CategoryId}", categoryId);
+            Logger.LogError(ex, "Error retrieving posts by category {CategoryId}", categoryId);
             return StatusCode(500, "An error occurred while retrieving posts");
         }
     }
@@ -116,7 +114,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving posts by tag {TagId}", tagId);
+            Logger.LogError(ex, "Error retrieving posts by tag {TagId}", tagId);
             return StatusCode(500, "An error occurred while retrieving posts");
         }
     }
@@ -134,7 +132,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving posts by author {AuthorId}", authorId);
+            Logger.LogError(ex, "Error retrieving posts by author {AuthorId}", authorId);
             return StatusCode(500, "An error occurred while retrieving posts");
         }
     }
@@ -152,7 +150,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving published posts");
+            Logger.LogError(ex, "Error retrieving published posts");
             return StatusCode(500, "An error occurred while retrieving published posts");
         }
     }
@@ -171,7 +169,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving draft posts");
+            Logger.LogError(ex, "Error retrieving draft posts");
             return StatusCode(500, "An error occurred while retrieving draft posts");
         }
     }
@@ -190,8 +188,18 @@ public class PostsController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var post = await _postService.CreatePostAsync(createPostDto);
+            // Get current user ID from JWT token
+            var authorId = GetCurrentUserId();
+            Logger.LogInformation("User claims: {Claims}", string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
+            Logger.LogInformation("Creating post for author: {AuthorId}", authorId);
+
+            var post = await _postService.CreatePostAsync(createPostDto, authorId);
             return CreatedAtAction(nameof(GetPost), new { id = post.Id }, post);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning("Unauthorized attempt to create post: {Message}", ex.Message);
+            return Unauthorized(ex.Message);
         }
         catch (InvalidOperationException ex)
         {
@@ -199,7 +207,7 @@ public class PostsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating post");
+            Logger.LogError(ex, "Error creating post");
             return StatusCode(500, "An error occurred while creating the post");
         }
     }
@@ -218,7 +226,11 @@ public class PostsController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            var post = await _postService.UpdatePostAsync(id, updatePostDto);
+            // Get current user authorization info
+            var (currentUserId, isAdmin) = GetCurrentUserInfo();
+            Logger.LogInformation("Updating post {PostId} for user: {UserId}, IsAdmin: {IsAdmin}", id, currentUserId, isAdmin);
+
+            var post = await _postService.UpdatePostAsync(id, updatePostDto, currentUserId, isAdmin);
             if (post == null)
             {
                 return NotFound($"Post with ID {id} not found");
@@ -226,9 +238,13 @@ public class PostsController : ControllerBase
 
             return Ok(post);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return HandleAuthorizationException(ex, "update this post");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating post {PostId}", id);
+            Logger.LogError(ex, "Error updating post {PostId}", id);
             return StatusCode(500, "An error occurred while updating the post");
         }
     }
@@ -242,7 +258,11 @@ public class PostsController : ControllerBase
     {
         try
         {
-            var result = await _postService.DeletePostAsync(id);
+            // Get current user authorization info
+            var (currentUserId, isAdmin) = GetCurrentUserInfo();
+            Logger.LogInformation("Deleting post {PostId} for user: {UserId}, IsAdmin: {IsAdmin}", id, currentUserId, isAdmin);
+
+            var result = await _postService.DeletePostAsync(id, currentUserId, isAdmin);
             if (!result)
             {
                 return NotFound($"Post with ID {id} not found");
@@ -250,9 +270,13 @@ public class PostsController : ControllerBase
 
             return Ok(new { message = "Post moved to trash successfully" });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return HandleAuthorizationException(ex, "delete this post");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting post {PostId}", id);
+            Logger.LogError(ex, "Error deleting post {PostId}", id);
             return StatusCode(500, "An error occurred while deleting the post");
         }
     }
@@ -266,7 +290,11 @@ public class PostsController : ControllerBase
     {
         try
         {
-            var result = await _postService.PublishPostAsync(id);
+            // Get current user authorization info
+            var (currentUserId, isAdmin) = GetCurrentUserInfo();
+            Logger.LogInformation("Publishing post {PostId} for user: {UserId}, IsAdmin: {IsAdmin}", id, currentUserId, isAdmin);
+
+            var result = await _postService.PublishPostAsync(id, currentUserId, isAdmin);
             if (!result)
             {
                 return NotFound($"Post with ID {id} not found");
@@ -274,9 +302,13 @@ public class PostsController : ControllerBase
 
             return Ok(new { message = "Post published successfully" });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return HandleAuthorizationException(ex, "publish this post");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error publishing post {PostId}", id);
+            Logger.LogError(ex, "Error publishing post {PostId}", id);
             return StatusCode(500, "An error occurred while publishing the post");
         }
     }
@@ -290,7 +322,11 @@ public class PostsController : ControllerBase
     {
         try
         {
-            var result = await _postService.UnpublishPostAsync(id);
+            // Get current user authorization info
+            var (currentUserId, isAdmin) = GetCurrentUserInfo();
+            Logger.LogInformation("Unpublishing post {PostId} for user: {UserId}, IsAdmin: {IsAdmin}", id, currentUserId, isAdmin);
+
+            var result = await _postService.UnpublishPostAsync(id, currentUserId, isAdmin);
             if (!result)
             {
                 return NotFound($"Post with ID {id} not found");
@@ -298,9 +334,13 @@ public class PostsController : ControllerBase
 
             return Ok(new { message = "Post unpublished successfully" });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return HandleAuthorizationException(ex, "unpublish this post");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error unpublishing post {PostId}", id);
+            Logger.LogError(ex, "Error unpublishing post {PostId}", id);
             return StatusCode(500, "An error occurred while unpublishing the post");
         }
     }
