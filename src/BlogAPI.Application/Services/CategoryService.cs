@@ -1,5 +1,6 @@
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
+using BlogAPI.Application.Common.Utils;
 using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.Application.Services;
@@ -66,7 +67,7 @@ public class CategoryService : ICategoryService
             Name = createCategoryDto.Name,
             Description = createCategoryDto.Description,
             Slug = string.IsNullOrEmpty(createCategoryDto.Slug) 
-                ? GenerateSlug(createCategoryDto.Name) 
+                ? SlugGenerator.GenerateSlug(createCategoryDto.Name) 
                 : createCategoryDto.Slug
         };
 
@@ -126,32 +127,4 @@ public class CategoryService : ICategoryService
         return true;
     }
 
-    private string GenerateSlug(string name)
-    {
-        var normalized = name
-            .ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("ş", "s")
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ı", "i")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace("đ", "d")
-            .Replace("Đ", "d")
-            .Normalize(System.Text.NormalizationForm.FormD);
-
-        var result = new System.Text.StringBuilder();
-        foreach (var c in normalized)
-        {
-            if (char.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-            {
-                result.Append(c);
-            }
-        }
-
-        return System.Text.RegularExpressions.Regex.Replace(result.ToString(), @"[^a-z0-9\-]", "")
-            .Replace("--", "-")
-            .Trim('-');
-    }
 }

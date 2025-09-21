@@ -1,5 +1,6 @@
 using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
+using BlogAPI.Application.Common.Utils;
 using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.Application.Services;
@@ -121,7 +122,7 @@ public class PostService : IPostService
         return postDtos;
     }
 
-    public async Task<PostDto> CreatePostAsync(CreatePostDto createPostDto)
+    public async Task<PostDto> CreatePostAsync(CreatePostDto createPostDto, Guid authorId)
     {
         var post = new Post
         {
@@ -129,9 +130,9 @@ public class PostService : IPostService
             Content = createPostDto.Content,
             Summary = createPostDto.Summary,
             Slug = string.IsNullOrEmpty(createPostDto.Slug) 
-                ? GenerateSlug(createPostDto.Title) 
+                ? SlugGenerator.GenerateSlug(createPostDto.Title) 
                 : createPostDto.Slug,
-            AuthorId = Guid.Empty, // Will be set by the controller from current user
+            AuthorId = authorId,
             IsPublished = createPostDto.IsPublished,
             FeaturedImage = createPostDto.FeaturedImage,
             ReadTimeMinutes = createPostDto.ReadTimeMinutes,
@@ -153,10 +154,16 @@ public class PostService : IPostService
         return await MapToDtoAsync(createdPost);
     }
 
-    public async Task<PostDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto)
+    public async Task<PostDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto, Guid currentUserId, bool isAdmin = false)
     {
         var post = await _postRepository.GetByIdAsync(id);
         if (post == null) return null;
+
+        // Check if user is authorized to update this post
+        if (!isAdmin && post.AuthorId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You can only update your own posts");
+        }
 
         if (!string.IsNullOrEmpty(updatePostDto.Title))
             post.Title = updatePostDto.Title;
@@ -202,19 +209,31 @@ public class PostService : IPostService
         return await MapToDtoAsync(updatedPost);
     }
 
-    public async Task<bool> DeletePostAsync(Guid id)
+    public async Task<bool> DeletePostAsync(Guid id, Guid currentUserId, bool isAdmin = false)
     {
         var post = await _postRepository.GetByIdAsync(id);
         if (post == null) return false;
+
+        // Check if user is authorized to delete this post
+        if (!isAdmin && post.AuthorId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You can only delete your own posts");
+        }
 
         await _postRepository.SoftDeleteAsync(post);
         return true;
     }
 
-    public async Task<bool> PublishPostAsync(Guid id)
+    public async Task<bool> PublishPostAsync(Guid id, Guid currentUserId, bool isAdmin = false)
     {
         var post = await _postRepository.GetByIdAsync(id);
         if (post == null) return false;
+
+        // Check if user is authorized to publish this post
+        if (!isAdmin && post.AuthorId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You can only publish your own posts");
+        }
 
         post.IsPublished = true;
         post.PublishedAt = DateTime.UtcNow;
@@ -222,10 +241,16 @@ public class PostService : IPostService
         return true;
     }
 
-    public async Task<bool> UnpublishPostAsync(Guid id)
+    public async Task<bool> UnpublishPostAsync(Guid id, Guid currentUserId, bool isAdmin = false)
     {
         var post = await _postRepository.GetByIdAsync(id);
         if (post == null) return false;
+
+        // Check if user is authorized to unpublish this post
+        if (!isAdmin && post.AuthorId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("You can only unpublish your own posts");
+        }
 
         post.IsPublished = false;
         await _postRepository.UpdateAsync(post);
@@ -319,98 +344,4 @@ public class PostService : IPostService
         };
     }
 
-    private static string GenerateSlug(string title)
-    {
-        var normalized = title
-            .ToLowerInvariant()
-            .Replace(" ", "-")
-            .Replace("ş", "s")
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ı", "i")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace("đ", "d")
-            .Replace("Đ", "d")
-            .Replace("à", "a")
-            .Replace("á", "a")
-            .Replace("ả", "a")
-            .Replace("ã", "a")
-            .Replace("ạ", "a")
-            .Replace("ă", "a")
-            .Replace("ằ", "a")
-            .Replace("ắ", "a")
-            .Replace("ẳ", "a")
-            .Replace("ẵ", "a")
-            .Replace("ặ", "a")
-            .Replace("â", "a")
-            .Replace("ầ", "a")
-            .Replace("ấ", "a")
-            .Replace("ẩ", "a")
-            .Replace("ẫ", "a")
-            .Replace("ậ", "a")
-            .Replace("è", "e")
-            .Replace("é", "e")
-            .Replace("ẻ", "e")
-            .Replace("ẽ", "e")
-            .Replace("ẹ", "e")
-            .Replace("ê", "e")
-            .Replace("ề", "e")
-            .Replace("ế", "e")
-            .Replace("ể", "e")
-            .Replace("ễ", "e")
-            .Replace("ệ", "e")
-            .Replace("ì", "i")
-            .Replace("í", "i")
-            .Replace("ỉ", "i")
-            .Replace("ĩ", "i")
-            .Replace("ị", "i")
-            .Replace("ò", "o")
-            .Replace("ó", "o")
-            .Replace("ỏ", "o")
-            .Replace("õ", "o")
-            .Replace("ọ", "o")
-            .Replace("ô", "o")
-            .Replace("ồ", "o")
-            .Replace("ố", "o")
-            .Replace("ổ", "o")
-            .Replace("ỗ", "o")
-            .Replace("ộ", "o")
-            .Replace("ơ", "o")
-            .Replace("ờ", "o")
-            .Replace("ớ", "o")
-            .Replace("ở", "o")
-            .Replace("ỡ", "o")
-            .Replace("ợ", "o")
-            .Replace("ù", "u")
-            .Replace("ú", "u")
-            .Replace("ủ", "u")
-            .Replace("ũ", "u")
-            .Replace("ụ", "u")
-            .Replace("ư", "u")
-            .Replace("ừ", "u")
-            .Replace("ứ", "u")
-            .Replace("ử", "u")
-            .Replace("ữ", "u")
-            .Replace("ự", "u")
-            .Replace("ỳ", "y")
-            .Replace("ý", "y")
-            .Replace("ỷ", "y")
-            .Replace("ỹ", "y")
-            .Replace("ỵ", "y")
-            .Normalize(System.Text.NormalizationForm.FormD);
-
-        var result = new System.Text.StringBuilder();
-        foreach (var c in normalized)
-        {
-            if (char.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-            {
-                result.Append(c);
-            }
-        }
-
-        return System.Text.RegularExpressions.Regex.Replace(result.ToString(), @"[^a-z0-9\-]", "")
-            .Replace("--", "-")
-            .Trim('-');
-    }
 }
