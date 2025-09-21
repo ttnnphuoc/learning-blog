@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Metadata } from 'next';
 import { PostCard } from '@/components/blog/post-card';
 import { SearchBar } from '@/components/blog/search-bar';
@@ -8,6 +8,7 @@ import { CategoryFilter } from '@/components/blog/category-filter';
 import { Pagination } from '@/components/blog/pagination';
 import { Button } from '@/components/ui/button';
 import { Post, Category } from '@/types';
+import { apiClient } from '@/lib/api';
 
 // Mock data - replace with API calls
 const mockPosts: Post[] = [
@@ -76,16 +77,13 @@ const mockPosts: Post[] = [
   // Add more mock posts...
 ];
 
-const mockCategories: Category[] = [
-  { id: 1, name: 'Web Development', slug: 'web-development', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-  { id: 2, name: 'Architecture', slug: 'architecture', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-  { id: 3, name: 'Programming', slug: 'programming', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-  { id: 4, name: 'DevOps', slug: 'devops', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-];
 
 export default function PostsPage() {
   const [posts] = useState<Post[]>(mockPosts);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>(mockPosts);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,6 +93,25 @@ export default function PostsPage() {
   const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
   const startIndex = (currentPage - 1) * postsPerPage;
   const currentPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage);
+
+  // Load categories from backend
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        setCategoriesError(null);
+        const data = await apiClient.getCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        setCategoriesError('Failed to load categories');
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -169,9 +186,11 @@ export default function PostsPage() {
         </div>
 
         <CategoryFilter
-          categories={mockCategories}
+          categories={categories}
           selectedCategories={selectedCategories}
           onCategoryChange={handleCategoryChange}
+          loading={categoriesLoading}
+          error={categoriesError}
         />
       </div>
 

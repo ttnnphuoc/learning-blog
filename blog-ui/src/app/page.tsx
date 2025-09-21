@@ -47,7 +47,7 @@ export default function HomePage() {
               <Button variant="outline" size="lg" asChild>
                 <Link href="/categories">Browse Categories</Link>
               </Button>
-              {isAuthenticated && RoleHelper.hasAdminAccess(user?.roles) && (
+              {isAuthenticated && RoleHelper.canCreateContent(user?.roles) && (
                 <Button variant="secondary" size="lg" asChild>
                   <Link href="/admin">Admin Dashboard</Link>
                 </Button>

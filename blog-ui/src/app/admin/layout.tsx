@@ -28,7 +28,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
       
       // Check if user has admin/moderator role
-      const hasAdminAccess = RoleHelper.hasAdminAccess(user?.roles);
+      const hasAdminAccess = RoleHelper.canCreateContent(user?.roles);
       
       if (!hasAdminAccess) {
         router.push('/');
@@ -50,7 +50,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  if (!isAuthenticated || !RoleHelper.hasAdminAccess(user?.roles)) {
+  if (!isAuthenticated || !RoleHelper.canCreateContent(user?.roles)) {
     return null;
   }
 

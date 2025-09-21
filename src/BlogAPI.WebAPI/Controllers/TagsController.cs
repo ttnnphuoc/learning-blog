@@ -62,7 +62,7 @@ public class TagsController : ControllerBase
     /// Create a new tag
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<TagDto>> CreateTag(CreateTagDto createTagDto)
+    public async Task<ActionResult<TagDto>> CreateTag(CreateOrUpdateTagDto createTagDto)
     {
         try
         {
@@ -85,7 +85,7 @@ public class TagsController : ControllerBase
     /// Update an existing tag
     /// </summary>
     [HttpPut("{id}")]
-    public async Task<ActionResult<TagDto>> UpdateTag(Guid id, UpdateTagDto updateTagDto)
+    public async Task<ActionResult<TagDto>> UpdateTag(Guid id, CreateOrUpdateTagDto updateTagDto)
     {
         try
         {

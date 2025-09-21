@@ -9,15 +9,6 @@ export enum UserRole {
 
 // Helper functions for role checking
 export class RoleHelper {
-  /**
-   * Check if user has admin access (Admin or Moderator)
-   */
-  static hasAdminAccess(roles: { name: string }[] = []): boolean {
-    debugger;
-    return roles.some(role => 
-      role.name === UserRole.ADMIN || role.name === UserRole.MODERATOR
-    );
-  }
 
   /**
    * Check if user can create content (Admin, Moderator, or Author)

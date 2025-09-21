@@ -45,7 +45,7 @@ export default function RegisterPage() {
     
     if (result.success) {
       // Check if user has admin or moderator role
-      const hasAdminAccess = RoleHelper.hasAdminAccess(result.user?.roles);
+      const hasAdminAccess = RoleHelper.canCreateContent(result.user?.roles);
       
       if (hasAdminAccess) {
         router.push('/admin');
