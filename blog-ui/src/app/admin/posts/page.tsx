@@ -242,7 +242,7 @@ export default function AdminPosts() {
       const newData = { ...prev, [field]: value };
       
       // Auto-generate slug when title changes and slug is empty
-      if (field === 'title' && !prev.slug) {
+      if (field === 'title') {
         newData.slug = generateSlug(value as string);
       }
       

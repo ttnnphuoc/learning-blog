@@ -10,77 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Post, Category } from '@/types';
 import { apiClient } from '@/lib/api';
 
-// Mock data - replace with API calls
-const mockPosts: Post[] = [
-  {
-    id: 1,
-    title: 'Getting Started with Next.js and ASP.NET Core',
-    content: 'This is a comprehensive guide to building modern web applications...',
-    summary: 'Learn how to build modern web applications using Next.js frontend with ASP.NET Core backend.',
-    slug: 'getting-started-nextjs-aspnet-core',
-    imageUrl: 'https://images.unsplash.com/photo-1517180102446-f3ece451e9d8?w=800&h=600&fit=crop',
-    isPublished: true,
-    publishedAt: '2024-01-15T10:00:00Z',
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-15T10:00:00Z',
-    authorId: 1,
-    author: {
-      id: 1,
-      username: 'johndoe',
-      email: 'john@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      bio: 'Full-stack developer passionate about modern web technologies.',
-      isActive: true,
-      createdAt: '2024-01-01T00:00:00Z',
-      roles: []
-    },
-    categories: [
-      { id: 1, name: 'Web Development', slug: 'web-development', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' }
-    ],
-    tags: [
-      { id: 1, name: 'Next.js', slug: 'nextjs', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-      { id: 2, name: 'ASP.NET Core', slug: 'aspnet-core', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' }
-    ]
-  },
-  {
-    id: 2,
-    title: 'Understanding Clean Architecture',
-    content: 'Clean Architecture is a software design philosophy that separates the elements of a design into ring levels...',
-    summary: 'Explore the principles of clean architecture and how to implement it in your projects.',
-    slug: 'understanding-clean-architecture',
-    imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop',
-    isPublished: true,
-    publishedAt: '2024-01-10T10:00:00Z',
-    createdAt: '2024-01-10T10:00:00Z',
-    updatedAt: '2024-01-10T10:00:00Z',
-    authorId: 2,
-    author: {
-      id: 2,
-      username: 'janesmith',
-      email: 'jane@example.com',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      bio: 'Software architect with 10+ years of experience in enterprise applications.',
-      isActive: true,
-      createdAt: '2024-01-01T00:00:00Z',
-      roles: []
-    },
-    categories: [
-      { id: 2, name: 'Architecture', slug: 'architecture', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' }
-    ],
-    tags: [
-      { id: 3, name: 'Clean Architecture', slug: 'clean-architecture', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' },
-      { id: 4, name: 'Design Patterns', slug: 'design-patterns', createdAt: '2024-01-01T00:00:00Z', updatedAt: '2024-01-01T00:00:00Z' }
-    ]
-  },
-  // Add more mock posts...
-];
-
 
 export default function PostsPage() {
-  const [posts] = useState<Post[]>(mockPosts);
-  const [filteredPosts, setFilteredPosts] = useState<Post[]>(mockPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -93,6 +28,26 @@ export default function PostsPage() {
   const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
   const startIndex = (currentPage - 1) * postsPerPage;
   const currentPosts = filteredPosts.slice(startIndex, startIndex + postsPerPage);
+
+  // Load posts from backend
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        setPostsLoading(true);
+        setPostsError(null);
+        const data = await apiClient.getPosts({ publishedOnly: true });
+        setPosts(data);
+        setFilteredPosts(data);
+      } catch (error) {
+        console.error('Failed to load posts:', error);
+        setPostsError('Failed to load posts');
+      } finally {
+        setPostsLoading(false);
+      }
+    };
+
+    loadPosts();
+  }, []);
 
   // Load categories from backend
   useEffect(() => {
@@ -202,7 +157,36 @@ export default function PostsPage() {
       </div>
 
       {/* Posts Grid/List */}
-      {currentPosts.length > 0 ? (
+      {postsError ? (
+        <div className="text-center py-12">
+          <div className="text-red-600 bg-red-50 p-6 rounded-lg max-w-md mx-auto">
+            <svg className="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Posts</h3>
+            <p className="text-red-700">{postsError}</p>
+          </div>
+        </div>
+      ) : postsLoading ? (
+        <div className={`mb-12 ${
+          viewMode === 'grid' 
+            ? 'grid gap-8 md:grid-cols-2 lg:grid-cols-3' 
+            : 'space-y-6'
+        }`}>
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
+              <div className="h-48 bg-gray-200"></div>
+              <div className="p-6">
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded mb-4 w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : currentPosts.length > 0 ? (
         <div className={`mb-12 ${
           viewMode === 'grid' 
             ? 'grid gap-8 md:grid-cols-2 lg:grid-cols-3' 

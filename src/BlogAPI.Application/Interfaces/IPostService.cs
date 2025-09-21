@@ -12,9 +12,9 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetPostsByAuthorAsync(Guid authorId);
     Task<IEnumerable<PostDto>> GetPublishedPostsAsync();
     Task<IEnumerable<PostDto>> GetDraftPostsAsync();
-    Task<PostDto> CreatePostAsync(CreatePostDto createPostDto);
-    Task<PostDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto);
-    Task<bool> DeletePostAsync(Guid id);
-    Task<bool> PublishPostAsync(Guid id);
-    Task<bool> UnpublishPostAsync(Guid id);
+    Task<PostDto> CreatePostAsync(CreatePostDto createPostDto, Guid authorId);
+    Task<PostDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto, Guid currentUserId, bool isAdmin = false);
+    Task<bool> DeletePostAsync(Guid id, Guid currentUserId, bool isAdmin = false);
+    Task<bool> PublishPostAsync(Guid id, Guid currentUserId, bool isAdmin = false);
+    Task<bool> UnpublishPostAsync(Guid id, Guid currentUserId, bool isAdmin = false);
 }
