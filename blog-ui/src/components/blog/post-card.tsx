@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatDate, calculateReadingTime, truncateText } from '@/lib/utils';
+import { formatDate, calculateReadingTime, getPlainTextSummary } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Post } from '@/types';
@@ -94,7 +94,7 @@ export function PostCard({ post, featured = false }: PostCardProps) {
             </Link>
           </h3>
           <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-600">
-            {post.summary || truncateText(post.content, 150)}
+            {post.summary || getPlainTextSummary(post.content, 150)}
           </p>
         </div>
         

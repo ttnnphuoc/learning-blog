@@ -238,7 +238,7 @@ class ApiClient {
   }
 
   // Posts endpoints
-  async getPosts(params: PostQueryParams = {}): Promise<PostDto[]> {
+  async getPosts(params: PostQueryParams = {}): Promise<PaginatedResponse<PostDto>> {
     const queryParams = new URLSearchParams();
     
     if (params.publishedOnly !== undefined) {
@@ -249,7 +249,7 @@ class ApiClient {
     if (params.search) queryParams.append('search', params.search);
 
     const queryString = queryParams.toString();
-    return this.request<PostDto[]>(`/api/posts${queryString ? `?${queryString}` : ''}`);
+    return this.request<PaginatedResponse<PostDto>>(`/api/posts${queryString ? `?${queryString}` : ''}`);
   }
 
   async getPost(id: string): Promise<PostDto> {

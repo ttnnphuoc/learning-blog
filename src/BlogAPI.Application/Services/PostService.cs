@@ -5,29 +5,98 @@ using BlogAPI.Domain.Entities;
 
 namespace BlogAPI.Application.Services;
 
-public class PostService : IPostService
+public class PostService(
+    IPostRepository postRepository,
+    ICategoryRepository categoryRepository,
+    ITagRepository tagRepository,
+    IUserRepository userRepository) : IPostService
 {
-    private readonly IPostRepository _postRepository;
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly ITagRepository _tagRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IPostRepository _postRepository = postRepository;
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly ITagRepository _tagRepository = tagRepository;
+    private readonly IUserRepository _userRepository = userRepository;
 
-    public PostService(
-        IPostRepository postRepository,
-        ICategoryRepository categoryRepository,
-        ITagRepository tagRepository,
-        IUserRepository userRepository)
+    public async Task<PaginatedResponse<PostDto>> GetPostsAsync(PostQueryParams queryParams)
     {
-        _postRepository = postRepository;
-        _categoryRepository = categoryRepository;
-        _tagRepository = tagRepository;
-        _userRepository = userRepository;
+        try
+        {
+            // Get all posts first (we'll add repository-level pagination later)
+            var allPosts = await _postRepository.GetAllAsync();
+            
+            // Apply filters
+            var filteredPosts = allPosts.AsQueryable();
+            
+            if (queryParams.PublishedOnly.HasValue)
+            {
+                filteredPosts = queryParams.PublishedOnly.Value 
+                    ? filteredPosts.Where(p => p.IsPublished)
+                    : filteredPosts.Where(p => !p.IsPublished);
+            }
+            
+            if (queryParams.AuthorId.HasValue)
+            {
+                filteredPosts = filteredPosts.Where(p => p.AuthorId == queryParams.AuthorId.Value);
+            }
+            
+            if (!string.IsNullOrEmpty(queryParams.Search))
+            {
+                var searchTerm = queryParams.Search;
+                filteredPosts = filteredPosts.Where(p => 
+                    p.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    p.Content.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    (p.Summary != null && p.Summary.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+            }
+            
+            // Order by creation date (newest first)
+            filteredPosts = filteredPosts.OrderByDescending(p => p.CreatedAt);
+            
+            // Calculate pagination
+            var totalItems = filteredPosts.Count();
+            var totalPages = (int)Math.Ceiling((double)totalItems / queryParams.PageSize);
+            var skip = (queryParams.Page - 1) * queryParams.PageSize;
+            
+            // Apply pagination
+            var pagedPosts = filteredPosts.Skip(skip).Take(queryParams.PageSize).ToList();
+            
+            // Map to DTOs
+            List<PostDto> postDtos = [];
+            foreach (var post in pagedPosts)
+            {
+                var postDto = await MapToDtoAsync(post);
+                postDtos.Add(postDto);
+            }
+            
+            return new PaginatedResponse<PostDto>
+            {
+                Success = true,
+                Data = postDtos,
+                Pagination = new PaginationMeta
+                {
+                    CurrentPage = queryParams.Page,
+                    PageSize = queryParams.PageSize,
+                    TotalPages = totalPages,
+                    TotalItems = totalItems,
+                    HasNext = queryParams.Page < totalPages,
+                    HasPrevious = queryParams.Page > 1
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            return new PaginatedResponse<PostDto>
+            {
+                Success = false,
+                Error = ex.Message,
+                Data = [],
+                Pagination = new()
+            };
+        }
     }
 
     public async Task<IEnumerable<PostDto>> GetAllPostsAsync()
     {
         var posts = await _postRepository.GetAllAsync();
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in posts)
         {
@@ -53,7 +122,7 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPostsByCategoryAsync(Guid categoryId)
     {
         var posts = await _postRepository.GetByCategoryAsync(categoryId);
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in posts)
         {
@@ -67,7 +136,7 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(Guid tagId)
     {
         var posts = await _postRepository.GetByTagAsync(tagId);
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in posts)
         {
@@ -82,7 +151,7 @@ public class PostService : IPostService
     {
         var posts = await _postRepository.GetAllAsync();
         var authorPosts = posts.Where(p => p.AuthorId == authorId);
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in authorPosts)
         {
@@ -96,7 +165,7 @@ public class PostService : IPostService
     public async Task<IEnumerable<PostDto>> GetPublishedPostsAsync()
     {
         var posts = await _postRepository.GetPublishedPostsAsync();
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in posts)
         {
@@ -111,7 +180,7 @@ public class PostService : IPostService
     {
         var posts = await _postRepository.GetAllAsync();
         var draftPosts = posts.Where(p => !p.IsPublished);
-        var postDtos = new List<PostDto>();
+        List<PostDto> postDtos = [];
         
         foreach (var post in draftPosts)
         {
@@ -321,7 +390,7 @@ public class PostService : IPostService
                 CreatedAt = author.CreatedAt,
                 UpdatedAt = author.UpdatedAt
             } : null,
-            Categories = categories.Select(c => new CategoryDto
+            Categories = [.. categories.Select(c => new CategoryDto
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -329,15 +398,15 @@ public class PostService : IPostService
                 Slug = c.Slug,
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
-            }).ToList(),
-            Tags = tags.Select(t => new TagDto
+            })],
+            Tags = [.. tags.Select(t => new TagDto
             {
                 Id = t.Id,
                 Name = t.Name,
                 Slug = t.Slug,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt
-            }).ToList(),
+            })],
             CreatedAt = post.CreatedAt,
             UpdatedAt = post.UpdatedAt,
             PublishedAt = post.PublishedAt

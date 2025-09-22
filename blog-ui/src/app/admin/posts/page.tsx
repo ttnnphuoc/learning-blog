@@ -16,6 +16,9 @@ export default function AdminPosts() {
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [tags, setTags] = useState<TagDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(10);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -120,15 +123,21 @@ export default function AdminPosts() {
     },
   ];
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (page: number = currentPage) => {
     try {
       setLoading(true);
-      const [postsData, categoriesData, tagsData] = await Promise.all([
-        apiClient.getPosts({ publishedOnly: false }),
+      const [postsResponse, categoriesData, tagsData] = await Promise.all([
+        apiClient.getPosts({ 
+          publishedOnly: false, 
+          page, 
+          pageSize 
+        }),
         apiClient.getCategories(),
         apiClient.getTags()
       ]);
-      setPosts(postsData);
+      setPosts(postsResponse.data || []);
+      setTotalPages(postsResponse.pagination?.totalPages || 1);
+      setCurrentPage(postsResponse.pagination?.currentPage || 1);
       setCategories(categoriesData);
       setTags(tagsData);
     } catch (error) {
@@ -141,6 +150,11 @@ export default function AdminPosts() {
   useEffect(() => {
     fetchPosts();
   }, []);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchPosts(page);
+  };
 
   const generateSlug = (title: string) => {
     return title
@@ -189,7 +203,8 @@ export default function AdminPosts() {
       const slug = formData.slug || generateSlug(formData.title);
       await apiClient.createPost({ ...formData, slug });
       setIsCreateModalOpen(false);
-      fetchPosts();
+      fetchPosts(1);
+      setCurrentPage(1);
     } catch (error) {
       console.error('Failed to create post:', error);
     } finally {
@@ -210,7 +225,7 @@ export default function AdminPosts() {
       });
       setIsEditModalOpen(false);
       setSelectedPost(null);
-      fetchPosts();
+      fetchPosts(currentPage);
     } catch (error) {
       console.error('Failed to update post:', error);
     } finally {
@@ -226,7 +241,15 @@ export default function AdminPosts() {
       await apiClient.deletePost(selectedPost.id);
       setIsDeleteModalOpen(false);
       setSelectedPost(null);
-      fetchPosts();
+      
+      // If current page becomes empty after deletion, go to previous page
+      if (posts.length === 1 && currentPage > 1) {
+        const newPage = currentPage - 1;
+        setCurrentPage(newPage);
+        fetchPosts(newPage);
+      } else {
+        fetchPosts(currentPage);
+      }
     } catch (error) {
       console.error('Failed to delete post:', error);
     } finally {
@@ -400,6 +423,11 @@ export default function AdminPosts() {
         onDelete={handleDelete}
         onCreate={handleCreate}
         title="Posts"
+        pagination={{
+          currentPage,
+          totalPages,
+          onPageChange: handlePageChange,
+        }}
       />
 
       {/* Create Modal */}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Pagination } from '@/components/blog/pagination';
 
 export interface Column<T = any> {
   key: string;
@@ -20,6 +21,11 @@ export interface AdminTableProps<T = any> {
   title: string;
   searchable?: boolean;
   onSearch?: (searchTerm: string) => void;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+  };
 }
 
 export function AdminTable<T extends { id: string }>({
@@ -32,6 +38,7 @@ export function AdminTable<T extends { id: string }>({
   title,
   searchable = true,
   onSearch,
+  pagination,
 }: AdminTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -40,13 +47,13 @@ export function AdminTable<T extends { id: string }>({
     onSearch?.(value);
   };
 
-  const filteredData = searchable && !onSearch
+  const filteredData = searchable && !onSearch && Array.isArray(data)
     ? data.filter((item) =>
         Object.values(item).some((value) =>
           String(value).toLowerCase().includes(searchTerm.toLowerCase())
         )
       )
-    : data;
+    : (Array.isArray(data) ? data : []);
 
   return (
     <div className="space-y-6">
@@ -149,6 +156,17 @@ export function AdminTable<T extends { id: string }>({
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination */}
+        {pagination && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.onPageChange}
+            />
           </div>
         )}
       </div>

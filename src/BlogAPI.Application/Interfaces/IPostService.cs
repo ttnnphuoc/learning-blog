@@ -4,6 +4,7 @@ namespace BlogAPI.Application.Interfaces;
 
 public interface IPostService
 {
+    Task<PaginatedResponse<PostDto>> GetPostsAsync(PostQueryParams queryParams);
     Task<IEnumerable<PostDto>> GetAllPostsAsync();
     Task<PostDto?> GetPostByIdAsync(Guid id);
     Task<PostDto?> GetPostBySlugAsync(string slug);

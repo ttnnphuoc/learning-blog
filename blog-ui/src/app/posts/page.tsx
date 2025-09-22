@@ -35,7 +35,8 @@ export default function PostsPage() {
       try {
         setPostsLoading(true);
         setPostsError(null);
-        const data = await apiClient.getPosts({ publishedOnly: true });
+        const response = await apiClient.getPosts({ publishedOnly: true });
+        const data = response.data || [];
         setPosts(data);
         setFilteredPosts(data);
       } catch (error) {

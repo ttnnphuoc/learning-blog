@@ -2,33 +2,29 @@ using BlogAPI.Application.DTOs;
 using BlogAPI.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace BlogAPI.WebAPI.Controllers;
 
-public class PostsController : BaseApiController
+public class PostsController(IPostService postService, ILogger<PostsController> logger) : BaseApiController(logger)
 {
-    private readonly IPostService _postService;
-
-    public PostsController(IPostService postService, ILogger<PostsController> logger) 
-        : base(logger)
-    {
-        _postService = postService;
-    }
+    private readonly IPostService _postService = postService;
 
     /// <summary>
-    /// Get all posts
+    /// Get all posts with pagination
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PostDto>>> GetPosts([FromQuery] bool publishedOnly = false)
+    public async Task<ActionResult<PaginatedResponse<PostDto>>> GetPosts([FromQuery] PostQueryParams queryParams)
     {
         try
         {
-            var posts = publishedOnly 
-                ? await _postService.GetPublishedPostsAsync()
-                : await _postService.GetAllPostsAsync();
+            var response = await _postService.GetPostsAsync(queryParams);
+            
+            if (!response.Success)
+            {
+                return BadRequest(response.Error);
+            }
 
-            return Ok(posts);
+            return Ok(response);
         }
         catch (Exception ex)
         {

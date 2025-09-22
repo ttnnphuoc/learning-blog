@@ -24,12 +24,13 @@ export const usePosts = (initialParams?: PostQueryParams): UsePostsResult => {
     setPostsState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const posts = await apiClient.getPosts(params);
+      const response = await apiClient.getPosts(params);
+      const posts = response.data || [];
       setPostsState(prev => ({
         ...prev,
         posts,
         loading: false,
-        hasMore: posts.length === (params.pageSize || 10), // Estimate based on page size
+        hasMore: response.pagination?.hasNext || false,
       }));
     } catch (error) {
       console.error('Failed to fetch posts:', error);
